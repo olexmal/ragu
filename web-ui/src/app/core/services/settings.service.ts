@@ -9,15 +9,46 @@ import { ConfluenceSettings, ConfluenceTestResult, ConfluenceFetchRequest, Confl
 })
 export class SettingsService extends ApiService {
   getConfluenceSettings(): Observable<ConfluenceSettings> {
-    return this.get<ConfluenceSettings>('/settings/confluence');
+    return this.get<any>('/settings/confluence').pipe(
+      map((response: any) => ({
+        enabled: response.enabled || false,
+        url: response.url || '',
+        instanceType: response.instance_type || 'cloud',
+        apiToken: response.api_token || '',
+        username: response.username || '',
+        password: response.password || '',
+        pageIds: response.page_ids || [],
+        autoSync: response.auto_sync || false,
+        syncInterval: response.sync_interval || 3600
+      }))
+    );
   }
 
   saveConfluenceSettings(settings: ConfluenceSettings): Observable<any> {
-    return this.post('/settings/confluence', settings);
+    // Convert camelCase to snake_case for backend
+    const backendSettings = {
+      enabled: settings.enabled,
+      url: settings.url,
+      instance_type: settings.instanceType,
+      api_token: settings.apiToken,
+      username: settings.username || '',
+      password: settings.password || '',
+      page_ids: settings.pageIds,
+      auto_sync: settings.autoSync,
+      sync_interval: settings.syncInterval
+    };
+    return this.post('/settings/confluence', backendSettings);
   }
 
   testConfluenceConnection(settings: Partial<ConfluenceSettings>): Observable<ConfluenceTestResult> {
-    return this.post<ConfluenceTestResult>('/confluence/test', settings);
+    // Convert camelCase to snake_case for backend
+    const backendSettings: any = {};
+    if (settings.url) backendSettings.url = settings.url;
+    if (settings.instanceType) backendSettings.instance_type = settings.instanceType;
+    if (settings.apiToken) backendSettings.api_token = settings.apiToken;
+    if (settings.username) backendSettings.username = settings.username;
+    if (settings.password) backendSettings.password = settings.password;
+    return this.post<ConfluenceTestResult>('/confluence/test', backendSettings);
   }
 
   fetchConfluencePages(request: ConfluenceFetchRequest): Observable<ConfluenceFetchResponse> {
@@ -26,7 +57,7 @@ export class SettingsService extends ApiService {
 
   getSystemSettings(): Observable<SystemSettings> {
     return this.get<{systemName: string}>('/settings/system').pipe(
-      map((response) => ({ systemName: response.systemName }))
+      map((response: {systemName: string}) => ({ systemName: response.systemName }))
     );
   }
 

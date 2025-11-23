@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { SettingsService } from '../../../core/services/settings.service';
 import { SystemNameService } from '../../../core/services/system-name.service';
 import { ConfluenceSettings, ConfluenceTestResult, ConfluenceFetchResponse, SystemSettings } from '../../../core/models/settings.models';
+import { finalize } from 'rxjs/operators';
 
 @Component({
   selector: 'app-settings',
@@ -162,16 +163,27 @@ export class SettingsComponent implements OnInit {
     this.error.set('');
     this.success.set('');
 
-    this.settingsService.saveConfluenceSettings(settings).subscribe({
-      next: () => {
-        this.success.set('Settings saved successfully');
-        this.loading.set(false);
-      },
-      error: (err: any) => {
-        this.error.set(err.message || 'Failed to save settings');
-        this.loading.set(false);
-      }
-    });
+    console.log('Saving Confluence settings:', { ...settings, password: '***', api_token: '***' });
+
+    this.settingsService.saveConfluenceSettings(settings)
+      .pipe(
+        finalize(() => {
+          console.log('Request completed (success or error)');
+          this.loading.set(false);
+        })
+      )
+      .subscribe({
+        next: (response: any) => {
+          console.log('Settings saved successfully:', response);
+          this.success.set('Settings saved successfully');
+        },
+        error: (err: any) => {
+          console.error('Error saving settings:', err);
+          console.error('Full error object:', JSON.stringify(err, null, 2));
+          const errorMessage = err?.error?.error || err?.error?.message || err?.message || 'Failed to save settings';
+          this.error.set(errorMessage);
+        }
+      });
   }
 
   fetchPages(): void {
