@@ -13,6 +13,7 @@ export class QueryResultsComponent {
   @Input() queryResponse!: QueryResponse;
   
   expandedSources = new Set<number>();
+  statsExpanded = false;
 
   toggleSource(index: number): void {
     if (this.expandedSources.has(index)) {
@@ -50,6 +51,10 @@ export class QueryResultsComponent {
       return '0';
     }
     return ((value / total) * 100).toFixed(1);
+  }
+
+  toggleStats(): void {
+    this.statsExpanded = !this.statsExpanded;
   }
 }
 

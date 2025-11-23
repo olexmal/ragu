@@ -1,7 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { tap, catchError } from 'rxjs/operators';
 import { ApiService } from './api.service';
 
 @Injectable({
@@ -14,22 +14,39 @@ export class AuthService extends ApiService {
   // Signals for reactive state
   isAuthenticated = signal<boolean>(false);
   apiKey = signal<string | null>(null);
+  authEnabled = signal<boolean>(false);
 
   constructor(http: HttpClient) {
     super(http);
     this.loadStoredApiKey();
+    this.checkAuthStatus();
   }
 
   login(apiKey: string, rememberMe: boolean = false): Observable<boolean> {
-    // Store API key
-    if (rememberMe) {
-      localStorage.setItem(this.API_KEY_STORAGE_KEY, apiKey);
-      localStorage.setItem(this.REMEMBER_ME_KEY, 'true');
-    } else {
-      sessionStorage.setItem(this.API_KEY_STORAGE_KEY, apiKey);
+    // If auth is disabled, allow empty API key
+    if (!this.authEnabled() && !apiKey.trim()) {
+      this.isAuthenticated.set(true);
+      return of(true);
     }
 
-    this.apiKey.set(apiKey);
+    // If auth is enabled, API key is required
+    if (this.authEnabled() && !apiKey.trim()) {
+      return new Observable<boolean>(observer => {
+        observer.error(new Error('API key is required when authentication is enabled'));
+      });
+    }
+
+    // Store API key if provided
+    if (apiKey.trim()) {
+      if (rememberMe) {
+        localStorage.setItem(this.API_KEY_STORAGE_KEY, apiKey);
+        localStorage.setItem(this.REMEMBER_ME_KEY, 'true');
+      } else {
+        sessionStorage.setItem(this.API_KEY_STORAGE_KEY, apiKey);
+      }
+      this.apiKey.set(apiKey);
+    }
+
     this.isAuthenticated.set(true);
     
     return of(true);
@@ -49,6 +66,25 @@ export class AuthService extends ApiService {
 
   getAuthStatus(): Observable<any> {
     return this.get('/auth/status');
+  }
+
+  private checkAuthStatus(): void {
+    this.getAuthStatus().pipe(
+      tap((status: any) => {
+        this.authEnabled.set(status.enabled === true);
+        
+        // If auth is disabled, automatically authenticate
+        if (!status.enabled) {
+          this.isAuthenticated.set(true);
+        }
+      }),
+      catchError(() => {
+        // If auth status endpoint fails, assume auth is disabled
+        this.authEnabled.set(false);
+        this.isAuthenticated.set(true);
+        return of(null);
+      })
+    ).subscribe();
   }
 
   private loadStoredApiKey(): void {

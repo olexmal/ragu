@@ -2,8 +2,23 @@
   <!-- Performance Statistics -->
   @if (queryResponse.stats) {
     <div class="bg-white rounded-lg shadow-md p-6">
-      <h2 class="text-2xl font-bold text-gray-900 mb-4">Server Processing Statistics</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <button
+        (click)="toggleStats()"
+        class="w-full flex items-center justify-between text-left mb-4 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-lg p-2 -m-2 hover:bg-gray-50 transition-colors"
+      >
+        <h2 class="text-2xl font-bold text-gray-900">Server Processing Statistics</h2>
+        <svg
+          class="w-6 h-6 text-gray-500 transition-transform"
+          [class.rotate-180]="statsExpanded"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+        </svg>
+      </button>
+      @if (statsExpanded) {
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <!-- Total Time -->
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div class="text-sm font-medium text-blue-700 mb-1">Total Request Time</div>
@@ -81,7 +96,8 @@
             <div class="text-xs text-gray-600 mt-1">{{ getPercentage(queryResponse.stats.request_overhead_time, queryResponse.stats.request_total_time || queryResponse.stats.total_time || 1) }}% of total</div>
           </div>
         }
-      </div>
+        </div>
+      }
     </div>
   }
 
