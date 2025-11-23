@@ -6,6 +6,7 @@
     @for (item of menuItems; track item.path) {
       <a
         [routerLink]="item.path"
+        [routerLinkActiveOptions]="item.path === '/admin' ? { exact: true } : { exact: false }"
         routerLinkActive="bg-primary-50 text-primary-700 border-primary-500"
         class="flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition-colors border-l-4 border-transparent"
       >
@@ -30,6 +31,7 @@
         @for (item of menuItems; track item.path) {
           <a
             [routerLink]="item.path"
+            [routerLinkActiveOptions]="item.path === '/admin' ? { exact: true } : { exact: false }"
             routerLinkActive="bg-primary-50 text-primary-700"
             (click)="uiState.setSidebarOpen(false)"
             class="flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition-colors"
