@@ -37,3 +37,7 @@ export interface ConfluenceFetchResponse {
   };
 }
 
+export interface SystemSettings {
+  systemName: string;
+}
+

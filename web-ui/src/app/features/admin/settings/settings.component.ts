@@ -2,7 +2,8 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SettingsService } from '../../../core/services/settings.service';
-import { ConfluenceSettings, ConfluenceTestResult, ConfluenceFetchResponse } from '../../../core/models/settings.models';
+import { SystemNameService } from '../../../core/services/system-name.service';
+import { ConfluenceSettings, ConfluenceTestResult, ConfluenceFetchResponse, SystemSettings } from '../../../core/models/settings.models';
 
 @Component({
   selector: 'app-settings',
@@ -13,6 +14,7 @@ import { ConfluenceSettings, ConfluenceTestResult, ConfluenceFetchResponse } fro
 })
 export class SettingsComponent implements OnInit {
   private settingsService = inject(SettingsService);
+  private systemNameService = inject(SystemNameService);
 
   confluenceSettings = signal<ConfluenceSettings>({
     enabled: false,
@@ -26,29 +28,96 @@ export class SettingsComponent implements OnInit {
     syncInterval: 3600
   });
 
+  systemSettings = signal<SystemSettings>({
+    systemName: 'RAG System'
+  });
+
   loading = signal<boolean>(false);
   testLoading = signal<boolean>(false);
   fetchLoading = signal<boolean>(false);
+  systemLoading = signal<boolean>(false);
   error = signal<string>('');
   success = signal<string>('');
+  systemError = signal<string>('');
+  systemSuccess = signal<string>('');
   testResult = signal<{success: boolean, message: string} | null>(null);
   newPageId = signal<string>('');
 
   ngOnInit(): void {
+    // Clear any previous messages on component initialization
+    this.error.set('');
+    this.success.set('');
+    this.systemError.set('');
+    this.systemSuccess.set('');
+    this.testResult.set(null);
     this.loadSettings();
+    this.loadSystemSettings();
   }
 
   loadSettings(): void {
     this.loading.set(true);
     this.error.set('');
+    this.success.set('');
+    this.testResult.set(null);
     this.settingsService.getConfluenceSettings().subscribe({
       next: (settings: ConfluenceSettings) => {
         this.confluenceSettings.set(settings);
         this.loading.set(false);
+        this.error.set(''); // Clear any previous errors
       },
       error: (err: any) => {
         this.error.set(err.message || 'Failed to load settings');
         this.loading.set(false);
+      }
+    });
+  }
+
+  loadSystemSettings(): void {
+    this.settingsService.getSystemSettings().subscribe({
+      next: (settings: SystemSettings) => {
+        this.systemSettings.set({
+          systemName: settings.systemName || 'RAG System'
+        });
+      },
+      error: (err: any) => {
+        console.error('Failed to load system settings:', err);
+        // Use default if loading fails
+        this.systemSettings.set({ systemName: 'RAG System' });
+      }
+    });
+  }
+
+  saveSystemSettings(): void {
+    const settings = this.systemSettings();
+    if (!settings.systemName || !settings.systemName.trim()) {
+      this.systemError.set('System name is required');
+      return;
+    }
+
+    this.systemLoading.set(true);
+    this.systemError.set('');
+    this.error.set(''); // Also clear Confluence errors
+    this.success.set(''); // Also clear Confluence success
+    // Don't clear systemSuccess here - let it persist
+
+    this.settingsService.saveSystemSettings(settings).subscribe({
+      next: (response: any) => {
+        // Always set a success message - use a hardcoded string to ensure it's not empty
+        const successMsg = 'System settings saved successfully';
+        console.log('Setting systemSuccess to:', successMsg);
+        this.systemSuccess.set(successMsg);
+        console.log('systemSuccess after set:', this.systemSuccess());
+        
+        // Update the system name service immediately
+        this.systemNameService.updateSystemName(settings.systemName.trim());
+        // Also reload from server to ensure consistency
+        this.systemNameService.reloadSystemName();
+        this.systemLoading.set(false);
+      },
+      error: (err: any) => {
+        const errorMsg = err.error?.error || err.error?.message || err.message || 'Failed to save system settings';
+        this.systemError.set(errorMsg);
+        this.systemLoading.set(false);
       }
     });
   }

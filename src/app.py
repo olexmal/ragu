@@ -15,7 +15,7 @@ if __name__ == '__main__':
     from embed import embed_file, embed_directory, embed_confluence_page, embed_confluence_pages
     from query import query_docs, query_simple
     from utils import setup_logging
-    from settings import get_confluence_settings, save_confluence_settings
+    from settings import get_confluence_settings, save_confluence_settings, get_system_settings, save_system_settings
     from confluence import ConfluenceIntegration
     # Multi-version and history not available in standalone mode
     query_multiple_versions = None
@@ -31,7 +31,7 @@ else:
     from .utils import setup_logging
     from .auth import requires_auth, requires_write_auth, get_auth_status
     from .code_extractor import extract_code_from_document, format_code_for_response
-    from .settings import get_confluence_settings, save_confluence_settings
+    from .settings import get_confluence_settings, save_confluence_settings, get_system_settings, save_system_settings
     from .confluence import ConfluenceIntegration
 
 load_dotenv()
@@ -877,6 +877,46 @@ def save_confluence_settings_endpoint():
             return jsonify({"error": "Failed to save settings"}), 500
     except Exception as e:
         logger.error(f"Failed to save Confluence settings: {e}")
+        return jsonify({"error": f"Failed to save settings: {str(e)}"}), 500
+
+
+@app.route('/settings/system', methods=['GET'])
+@requires_auth
+def get_system_settings_endpoint():
+    """Get current system settings."""
+    try:
+        settings = get_system_settings()
+        # Convert snake_case to camelCase for frontend
+        return jsonify({"systemName": settings.get("system_name", "RAG System")}), 200
+    except Exception as e:
+        logger.error(f"Failed to get system settings: {e}")
+        return jsonify({"error": f"Failed to get settings: {str(e)}"}), 500
+
+
+@app.route('/settings/system', methods=['POST'])
+@requires_write_auth
+def save_system_settings_endpoint():
+    """Save system settings."""
+    if not request.is_json:
+        return jsonify({"error": "Content-Type must be application/json"}), 400
+    
+    data = request.json
+    if data is None:
+        return jsonify({"error": "Invalid or missing JSON body"}), 400
+    
+    try:
+        # Validate required fields
+        if 'system_name' not in data or not data['system_name'] or not data['system_name'].strip():
+            return jsonify({"error": "System name is required and cannot be empty"}), 400
+        
+        # Save settings
+        success = save_system_settings(data)
+        if success:
+            return jsonify({"message": "Settings saved successfully"}), 200
+        else:
+            return jsonify({"error": "Failed to save settings"}), 500
+    except Exception as e:
+        logger.error(f"Failed to save system settings: {e}")
         return jsonify({"error": f"Failed to save settings: {str(e)}"}), 500
 
 

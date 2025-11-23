@@ -13,6 +13,7 @@ load_dotenv()
 
 SETTINGS_DIR = Path(os.getenv('SETTINGS_DIR', './.rag_settings'))
 CONFLUENCE_SETTINGS_FILE = SETTINGS_DIR / 'confluence.json'
+SYSTEM_SETTINGS_FILE = SETTINGS_DIR / 'system.json'
 
 logger = setup_logging()
 
@@ -87,5 +88,62 @@ def save_confluence_settings(settings: Dict[str, Any]) -> bool:
         return True
     except IOError as e:
         logger.error(f"Error saving Confluence settings: {e}")
+        return False
+
+
+def get_system_settings() -> Dict[str, Any]:
+    """
+    Load system settings from file.
+    
+    Returns:
+        dict: System settings with default values if file doesn't exist
+    """
+    default_settings = {
+        "system_name": "RAG System"
+    }
+    
+    if not SYSTEM_SETTINGS_FILE.exists():
+        logger.info("System settings file not found, using defaults")
+        return default_settings
+    
+    try:
+        with open(SYSTEM_SETTINGS_FILE, 'r') as f:
+            settings = json.load(f)
+            # Merge with defaults to ensure all keys exist
+            merged = {**default_settings, **settings}
+            return merged
+    except (json.JSONDecodeError, IOError) as e:
+        logger.warning(f"Error loading system settings: {e}")
+        return default_settings
+
+
+def save_system_settings(settings: Dict[str, Any]) -> bool:
+    """
+    Save system settings to file.
+    
+    Args:
+        settings: Dictionary containing system settings
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
+        
+        # Ensure all required keys are present
+        default_settings = {
+            "system_name": "RAG System"
+        }
+        
+        # Merge with defaults to ensure all keys exist
+        merged_settings = {**default_settings, **settings}
+        
+        with open(SYSTEM_SETTINGS_FILE, 'w') as f:
+            json.dump(merged_settings, f, indent=2)
+        
+        logger.info("System settings saved successfully")
+        return True
+    except IOError as e:
+        logger.error(f"Error saving system settings: {e}")
         return False
 

@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '@app/core/services/auth.service';
 import { UiState } from '../../core/state/ui.state';
+import { SystemNameService } from '../../core/services/system-name.service';
 
 @Component({
   selector: 'app-header',
@@ -14,6 +15,7 @@ import { UiState } from '../../core/state/ui.state';
 export class HeaderComponent {
   private authService = inject(AuthService);
   private uiState = inject(UiState);
+  systemNameService = inject(SystemNameService);
 
   isAuthenticated = this.authService.isAuthenticated;
   sidebarOpen = this.uiState.sidebarOpen;
