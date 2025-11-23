@@ -15,7 +15,7 @@ export class QueryState {
 
   setQuery(response: QueryResponse): void {
     this.querySignal.set(response);
-    this.loadingSignal.set(false);
+    // Don't set loading to false here - let finalize handle it
     this.errorSignal.set(null);
   }
 
@@ -25,7 +25,7 @@ export class QueryState {
 
   setError(error: string | null): void {
     this.errorSignal.set(error);
-    this.loadingSignal.set(false);
+    // Don't set loading to false here - let finalize handle it
   }
 
   clear(): void {
