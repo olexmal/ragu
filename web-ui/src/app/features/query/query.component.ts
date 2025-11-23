@@ -5,7 +5,6 @@ import { finalize } from 'rxjs/operators';
 import { QueryService } from '../../core/services/query.service';
 import { CollectionService } from '../../core/services/collection.service';
 import { QueryState } from '../../core/state/query.state';
-import { CollectionState } from '../../core/state/collection.state';
 import { QueryRequest } from '../../core/models/query.models';
 import { QueryResultsComponent } from './components/query-results/query-results.component';
 
@@ -20,7 +19,6 @@ export class QueryComponent {
   private queryService = inject(QueryService);
   private collectionService = inject(CollectionService);
   queryState = inject(QueryState);
-  collectionState = inject(CollectionState);
 
   queryText = signal<string>('');
   selectedVersion = signal<string | undefined>(undefined);
