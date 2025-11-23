@@ -324,10 +324,31 @@ def get_collection_info(version):
     """Get information about a specific collection."""
     try:
         import chromadb
-        client = chromadb.PersistentClient(path=os.getenv('CHROMA_PATH', 'chroma'))
-        collection_name = f"{os.getenv('COLLECTION_NAME', 'common-model-docs')}-v{version}"
+        from .utils import generate_collection_name
+        import re
         
-        collection = client.get_collection(name=collection_name)
+        client = chromadb.PersistentClient(path=os.getenv('CHROMA_PATH', 'chroma'))
+        base_name = os.getenv('COLLECTION_NAME', 'common-model-docs')
+        
+        # Try to determine if version is actually a version number or a full collection name
+        collection_name = None
+        collection = None
+        
+        # Check if version looks like a version number (contains digits)
+        if re.match(r'^[\d.]+$', version):
+            # It's a version number, use versioned collection name
+            collection_name = generate_collection_name(base_name, version)
+        else:
+            # It might be a full collection name, try as-is first
+            try:
+                collection = client.get_collection(name=version)
+                collection_name = version
+            except Exception:
+                # If that fails, try with version suffix
+                collection_name = generate_collection_name(base_name, version)
+        
+        if not collection:
+            collection = client.get_collection(name=collection_name)
         
         return jsonify({
             "name": collection.name,
@@ -340,15 +361,37 @@ def get_collection_info(version):
 
 
 @app.route('/collections/<version>', methods=['DELETE'])
+@requires_write_auth
 def delete_collection(version):
     """Delete a specific collection."""
     try:
         import chromadb
+        from .utils import generate_collection_name
+        import re
+        
         client = chromadb.PersistentClient(path=os.getenv('CHROMA_PATH', 'chroma'))
-        collection_name = f"{os.getenv('COLLECTION_NAME', 'common-model-docs')}-v{version}"
+        base_name = os.getenv('COLLECTION_NAME', 'common-model-docs')
+        
+        # Try to determine if version is actually a version number or a full collection name
+        collection_name = None
+        
+        # Check if version looks like a version number (contains digits)
+        if re.match(r'^[\d.]+$', version):
+            # It's a version number, use versioned collection name
+            collection_name = generate_collection_name(base_name, version)
+        else:
+            # It might be a full collection name, try as-is first
+            try:
+                # Try to get the collection to verify it exists
+                client.get_collection(name=version)
+                collection_name = version
+            except Exception:
+                # If that fails, try with version suffix
+                collection_name = generate_collection_name(base_name, version)
         
         client.delete_collection(name=collection_name)
         
+        logger.info(f"Collection {collection_name} deleted successfully")
         return jsonify({
             "message": f"Collection {collection_name} deleted successfully",
             "version": version
@@ -356,6 +399,114 @@ def delete_collection(version):
     except Exception as e:
         logger.error(f"Error deleting collection: {e}")
         return jsonify({"error": f"Failed to delete collection: {str(e)}"}), 500
+
+
+@app.route('/collections/<version>/documents', methods=['GET'])
+@requires_auth
+def list_collection_documents(version):
+    """List all documents in a specific collection."""
+    try:
+        import chromadb
+        from .utils import generate_collection_name
+        
+        client = chromadb.PersistentClient(path=os.getenv('CHROMA_PATH', 'chroma'))
+        base_name = os.getenv('COLLECTION_NAME', 'common-model-docs')
+        
+        # Try to determine if version is actually a version number or a full collection name
+        # First, try the version as-is (in case it's a full collection name)
+        # Then try with version suffix (in case it's a version number)
+        collection_name = None
+        collection = None
+        
+        # Check if version looks like a version number (contains digits)
+        import re
+        if re.match(r'^[\d.]+$', version):
+            # It's a version number, use versioned collection name
+            collection_name = generate_collection_name(base_name, version)
+        else:
+            # It might be a full collection name, try as-is first
+            try:
+                collection = client.get_collection(name=version)
+                collection_name = version
+            except Exception:
+                # If that fails, try with version suffix
+                collection_name = generate_collection_name(base_name, version)
+        
+        if not collection:
+            collection = client.get_collection(name=collection_name)
+        
+        # Get all documents from the collection
+        # Using limit=None to get all documents, but we'll use a reasonable limit
+        # ChromaDB's get() method can retrieve all documents
+        results = collection.get(limit=None)
+        
+        documents = []
+        if results and results.get('ids'):
+            for i, doc_id in enumerate(results['ids']):
+                metadata = results.get('metadatas', [{}])[i] if results.get('metadatas') else {}
+                documents.append({
+                    'id': doc_id,
+                    'metadata': metadata,
+                    'source': metadata.get('source_file', metadata.get('source', 'Unknown')),
+                    'page': metadata.get('page', ''),
+                    'chunk_index': metadata.get('chunk_index', '')
+                })
+        
+        return jsonify({
+            "version": version,
+            "collection_name": collection_name,
+            "documents": documents,
+            "total": len(documents)
+        }), 200
+    except Exception as e:
+        logger.error(f"Error listing collection documents: {e}")
+        return jsonify({"error": f"Failed to list documents: {str(e)}"}), 500
+
+
+@app.route('/collections/<version>/documents/<doc_id>', methods=['DELETE'])
+@requires_write_auth
+def delete_collection_document(version, doc_id):
+    """Delete a specific document from a collection."""
+    try:
+        import chromadb
+        from .utils import generate_collection_name
+        import re
+        
+        client = chromadb.PersistentClient(path=os.getenv('CHROMA_PATH', 'chroma'))
+        base_name = os.getenv('COLLECTION_NAME', 'common-model-docs')
+        
+        # Try to determine if version is actually a version number or a full collection name
+        collection_name = None
+        collection = None
+        
+        # Check if version looks like a version number (contains digits)
+        if re.match(r'^[\d.]+$', version):
+            # It's a version number, use versioned collection name
+            collection_name = generate_collection_name(base_name, version)
+        else:
+            # It might be a full collection name, try as-is first
+            try:
+                collection = client.get_collection(name=version)
+                collection_name = version
+            except Exception:
+                # If that fails, try with version suffix
+                collection_name = generate_collection_name(base_name, version)
+        
+        if not collection:
+            collection = client.get_collection(name=collection_name)
+        
+        # Delete the document by ID
+        collection.delete(ids=[doc_id])
+        
+        logger.info(f"Document {doc_id} deleted from collection {collection_name}")
+        return jsonify({
+            "message": f"Document deleted successfully",
+            "version": version,
+            "document_id": doc_id
+        }), 200
+    except Exception as e:
+        logger.error(f"Error deleting document: {e}")
+        return jsonify({"error": f"Failed to delete document: {str(e)}"}), 500
 
 
 @app.route('/stats', methods=['GET'])
