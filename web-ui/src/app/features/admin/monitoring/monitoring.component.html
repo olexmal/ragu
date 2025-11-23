@@ -1,0 +1,107 @@
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <h1 class="text-3xl font-bold text-gray-900">System Monitoring</h1>
+    <div class="flex items-center gap-4">
+      <label class="text-sm text-gray-700">Days:</label>
+      <select
+        [value]="days()"
+        (change)="onDaysChange(+($any($event.target).value))"
+        class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+      >
+        <option value="1">1 day</option>
+        <option value="7">7 days</option>
+        <option value="30">30 days</option>
+      </select>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="flex justify-center items-center py-12">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+    </div>
+  } @else if (stats()) {
+    <!-- Query Statistics -->
+    @if (stats()?.query_stats) {
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">Query Statistics</h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="metric-card">
+            <h3 class="text-sm font-medium text-gray-500 mb-2">Total Queries</h3>
+            <p class="text-2xl font-bold text-gray-900">{{ stats().query_stats.total_queries || 0 }}</p>
+          </div>
+          <div class="metric-card">
+            <h3 class="text-sm font-medium text-gray-500 mb-2">Avg Response Time</h3>
+            <p class="text-2xl font-bold text-gray-900">
+              {{ (stats().query_stats.avg_response_time || 0).toFixed(2) }}s
+            </p>
+          </div>
+          <div class="metric-card">
+            <h3 class="text-sm font-medium text-gray-500 mb-2">Cache Hit Rate</h3>
+            <p class="text-2xl font-bold text-gray-900">
+              {{ (stats().query_stats.cache_hit_rate || 0).toFixed(1) }}%
+            </p>
+          </div>
+          <div class="metric-card">
+            <h3 class="text-sm font-medium text-gray-500 mb-2">Most Common Query</h3>
+            <p class="text-sm font-medium text-gray-900 truncate">
+              {{ stats().query_stats.most_common_query || 'N/A' }}
+            </p>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Embedding Statistics -->
+    @if (stats()?.embedding_stats) {
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">Embedding Statistics</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="metric-card">
+            <h3 class="text-sm font-medium text-gray-500 mb-2">Total Embeddings</h3>
+            <p class="text-2xl font-bold text-gray-900">{{ stats().embedding_stats.total_embeddings || 0 }}</p>
+          </div>
+          <div class="metric-card">
+            <h3 class="text-sm font-medium text-gray-500 mb-2">Avg Embedding Time</h3>
+            <p class="text-2xl font-bold text-gray-900">
+              {{ (stats().embedding_stats.avg_embedding_time || 0).toFixed(2) }}s
+            </p>
+          </div>
+          <div class="metric-card">
+            <h3 class="text-sm font-medium text-gray-500 mb-2">Total Files Processed</h3>
+            <p class="text-2xl font-bold text-gray-900">{{ stats().embedding_stats.total_files || 0 }}</p>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Cache Statistics -->
+    @if (stats()?.cache_stats) {
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">Cache Statistics</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="metric-card">
+            <h3 class="text-sm font-medium text-gray-500 mb-2">Cache Size</h3>
+            <p class="text-2xl font-bold text-gray-900">{{ stats().cache_stats.size || 0 }}</p>
+          </div>
+          <div class="metric-card">
+            <h3 class="text-sm font-medium text-gray-500 mb-2">Hits</h3>
+            <p class="text-2xl font-bold text-gray-900">{{ stats().cache_stats.hits || 0 }}</p>
+          </div>
+          <div class="metric-card">
+            <h3 class="text-sm font-medium text-gray-500 mb-2">Misses</h3>
+            <p class="text-2xl font-bold text-gray-900">{{ stats().cache_stats.misses || 0 }}</p>
+          </div>
+        </div>
+        <div class="mt-4">
+          <button
+            (click)="clearCache()"
+            class="px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Clear Cache
+          </button>
+        </div>
+      </div>
+    }
+  }
+</div>
+

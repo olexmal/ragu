@@ -1,0 +1,117 @@
+<div class="max-w-4xl mx-auto">
+  <h1 class="text-3xl font-bold text-gray-900 mb-6">Query Documentation</h1>
+
+  <!-- Query Input Form -->
+  <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+    <form (ngSubmit)="onSubmit()" class="space-y-4">
+      <!-- Query Input -->
+      <div>
+        <label for="query" class="block text-sm font-medium text-gray-700 mb-2">
+          Enter your question
+        </label>
+        <textarea
+          id="query"
+          [(ngModel)]="queryText"
+          name="query"
+          rows="4"
+          class="query-input"
+          placeholder="e.g., How do I use the UserService class?"
+          required
+        ></textarea>
+      </div>
+
+      <!-- Options Row -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Version Selector -->
+        <div>
+          <label for="version" class="block text-sm font-medium text-gray-700 mb-2">
+            Version (optional)
+          </label>
+          <select
+            id="version"
+            [(ngModel)]="selectedVersion"
+            name="version"
+            class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option [value]="undefined">All Versions</option>
+            @for (collection of collections(); track collection.name) {
+              <option [value]="collection.name">{{ collection.name }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- K Value -->
+        <div>
+          <label for="k" class="block text-sm font-medium text-gray-700 mb-2">
+            Documents to retrieve
+          </label>
+          <input
+            type="number"
+            id="k"
+            [(ngModel)]="k"
+            name="k"
+            min="1"
+            max="10"
+            class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+        </div>
+
+        <!-- Simple Query Toggle -->
+        <div class="flex items-end">
+          <label class="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="checkbox"
+              [(ngModel)]="useSimple"
+              name="simple"
+              class="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+            />
+            <span class="text-sm text-gray-700">Simple query (faster)</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <div class="flex gap-3">
+        <button
+          type="submit"
+          [disabled]="!queryText().trim() || queryState.loading()"
+          class="flex-1 px-6 py-3 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          @if (queryState.loading()) {
+            <span class="flex items-center justify-center">
+              <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Querying...
+            </span>
+          } @else {
+            Query
+          }
+        </button>
+        @if (queryText()) {
+          <button
+            type="button"
+            (click)="clearQuery()"
+            class="px-6 py-3 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
+          >
+            Clear
+          </button>
+        }
+      </div>
+    </form>
+  </div>
+
+  <!-- Error Message -->
+  @if (queryState.error()) {
+    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+      {{ queryState.error() }}
+    </div>
+  }
+
+  <!-- Query Results -->
+  @if (queryState.query()) {
+    <app-query-results [queryResponse]="queryState.query()!"></app-query-results>
+  }
+</div>
+

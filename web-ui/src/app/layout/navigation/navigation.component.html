@@ -1,0 +1,44 @@
+<!-- Desktop Sidebar -->
+<aside
+  class="hidden lg:flex lg:flex-shrink-0 w-64 bg-white border-r border-gray-200 flex-col"
+>
+  <nav class="flex-1 px-4 py-6 space-y-1">
+    @for (item of menuItems; track item.path) {
+      <a
+        [routerLink]="item.path"
+        routerLinkActive="bg-primary-50 text-primary-700 border-primary-500"
+        class="flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition-colors border-l-4 border-transparent"
+      >
+        <span class="mr-3">{{ item.label }}</span>
+      </a>
+    }
+  </nav>
+</aside>
+
+<!-- Mobile Sidebar -->
+@if (sidebarOpen()) {
+  <div
+    class="lg:hidden fixed inset-0 z-50 flex"
+    (click)="uiState.setSidebarOpen(false)"
+  >
+    <!-- Backdrop -->
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-75"></div>
+    
+    <!-- Sidebar -->
+    <aside class="relative flex-1 flex flex-col max-w-xs w-full bg-white">
+      <nav class="flex-1 px-4 py-6 space-y-1">
+        @for (item of menuItems; track item.path) {
+          <a
+            [routerLink]="item.path"
+            routerLinkActive="bg-primary-50 text-primary-700"
+            (click)="uiState.setSidebarOpen(false)"
+            class="flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition-colors"
+          >
+            <span>{{ item.label }}</span>
+          </a>
+        }
+      </nav>
+    </aside>
+  </div>
+}
+

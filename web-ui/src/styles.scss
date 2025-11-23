@@ -1,0 +1,10 @@
+// Import SCSS partials first
+@use './styles/variables' as *;
+@use './styles/mixins' as *;
+@use './styles/utilities' as *;
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* You can add global styles to this file, and also import other style files */
