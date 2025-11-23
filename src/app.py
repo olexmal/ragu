@@ -193,6 +193,11 @@ def embed_batch():
 @app.route('/query', methods=['POST'])
 def query():
     """Query the documentation using natural language."""
+    import time
+    
+    # Start overall request timing
+    request_start_time = time.time()
+    
     # SECURITY: Check if request has JSON body
     if not request.is_json:
         return jsonify({"error": "Content-Type must be application/json"}), 400
@@ -237,12 +242,33 @@ def query():
                     "metadata": {}
                 })
         
+        # Get statistics from result
+        stats = result.get('stats', {})
+        request_total_time = time.time() - request_start_time
+        
+        # Add request overhead time (time not accounted for in query processing)
+        stats['request_overhead_time'] = max(0, request_total_time - stats.get('total_time', 0))
+        stats['request_total_time'] = request_total_time
+        
         response = {
             "answer": result.get('result', ''),
             "query": result.get('query', question),
             "sources": sources,
-            "source_count": len(sources)
+            "source_count": len(sources),
+            "stats": stats
         }
+        
+        # Log statistics
+        logger.info(f"Query statistics for '{question[:50]}...': "
+                   f"Total: {stats.get('request_total_time', 0):.3f}s | "
+                   f"Cache lookup: {stats.get('cache_lookup_time', 0):.3f}s | "
+                   f"LLM init: {stats.get('llm_init_time', 0):.3f}s | "
+                   f"Vector DB init: {stats.get('vector_db_init_time', 0):.3f}s | "
+                   f"Multi-query gen: {stats.get('multi_query_generation_time', 0):.3f}s | "
+                   f"Doc retrieval: {stats.get('document_retrieval_time', 0):.3f}s | "
+                   f"Answer gen: {stats.get('answer_generation_time', 0):.3f}s | "
+                   f"Cache store: {stats.get('cache_store_time', 0):.3f}s | "
+                   f"Overhead: {stats.get('request_overhead_time', 0):.3f}s")
         
         # Add to query history
         try:
@@ -251,7 +277,7 @@ def query():
                 question,
                 answer=result['result'],
                 version=version,
-                response_time=None,  # Could extract from result if available
+                response_time=stats.get('request_total_time'),
                 source_count=len(result['source_documents'])
             )
         except Exception as e:

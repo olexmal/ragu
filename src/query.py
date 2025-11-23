@@ -69,10 +69,23 @@ def query_docs(question, collection_name=None, version=None, k=3, use_cache=None
         use_cache: Override cache setting (default: from USE_CACHE env var)
         
     Returns:
-        dict: Query result with answer and source documents
+        dict: Query result with answer, source documents, and timing statistics
     """
     if not question or not question.strip():
         raise ValueError("Question cannot be empty")
+    
+    # Initialize timing statistics
+    stats = {
+        'total_time': 0.0,
+        'cache_lookup_time': 0.0,
+        'llm_init_time': 0.0,
+        'vector_db_init_time': 0.0,
+        'multi_query_generation_time': 0.0,
+        'document_retrieval_time': 0.0,
+        'answer_generation_time': 0.0,
+        'cache_store_time': 0.0
+    }
+    overall_start = time.time()
     
     # Check cache if enabled
     cached = False
@@ -80,14 +93,19 @@ def query_docs(question, collection_name=None, version=None, k=3, use_cache=None
         use_cache = USE_CACHE
     
     if use_cache:
+        cache_start = time.time()
         cache = get_cache()
         cached_result = cache.get(question, version, k)
+        stats['cache_lookup_time'] = time.time() - cache_start
+        
         if cached_result:
             logger.info(f"Returning cached result for: {question[:100]}...")
             cached = True
+            stats['total_time'] = time.time() - overall_start
+            cached_result['stats'] = stats
             # Log to monitoring
             monitor = get_query_monitor()
-            monitor.log_query(question, version, response_time=0.0, 
+            monitor.log_query(question, version, response_time=stats['total_time'], 
                             source_count=len(cached_result.get('source_documents', [])), 
                             cached=True)
             return cached_result
@@ -96,21 +114,29 @@ def query_docs(question, collection_name=None, version=None, k=3, use_cache=None
     start_time = time.time()
     
     # Initialize the language model
+    llm_start = time.time()
     llm = ChatOllama(model=LLM_MODEL, temperature=0)
+    stats['llm_init_time'] = time.time() - llm_start
     
     # Get the vector database instance
+    db_start = time.time()
     db = get_vector_db(collection_name=collection_name, version=version)
+    stats['vector_db_init_time'] = time.time() - db_start
     
     # Get the prompt templates
     QUERY_PROMPT, prompt = get_prompt()
     
     # Set up the retriever with multi-query support
     base_retriever = db.as_retriever(search_kwargs={"k": k})
+    
+    # Multi-query generation timing
+    multi_query_start = time.time()
     retriever = MultiQueryRetriever.from_llm(
         retriever=base_retriever,
         llm=llm,
         prompt=QUERY_PROMPT
     )
+    stats['multi_query_generation_time'] = time.time() - multi_query_start
     
     # Create the QA chain using LCEL
     def format_docs(docs):
@@ -127,16 +153,22 @@ def query_docs(question, collection_name=None, version=None, k=3, use_cache=None
     try:
         # Get source documents - MultiQueryRetriever wraps the base retriever
         # In LangChain 1.0+, retrievers are Runnable and support invoke()
+        retrieval_start = time.time()
         try:
             source_docs = retriever.invoke(question)
         except (AttributeError, TypeError) as e:
             # Fallback: use the underlying base retriever
             logger.warning(f"MultiQueryRetriever.invoke failed, using base retriever: {e}")
             source_docs = base_retriever.invoke(question)
+        stats['document_retrieval_time'] = time.time() - retrieval_start
         
         # Get answer from the chain
+        answer_start = time.time()
         answer = rag_chain.invoke(question)
+        stats['answer_generation_time'] = time.time() - answer_start
+        
         response_time = time.time() - start_time
+        stats['total_time'] = time.time() - overall_start
         logger.info(f"Query processed successfully. Retrieved {len(source_docs)} documents in {response_time:.2f}s")
         
         # Convert Document objects to dicts for JSON serialization
@@ -155,13 +187,8 @@ def query_docs(question, collection_name=None, version=None, k=3, use_cache=None
                     'metadata': {}
                 })
         
-        query_result = {
-            'result': answer,
-            'source_documents': source_docs,  # Keep original for return value
-            'query': question
-        }
-        
         # Cache the result if enabled (use serializable version)
+        cache_store_start = time.time()
         if use_cache:
             cache = get_cache()
             cacheable_result = {
@@ -170,10 +197,18 @@ def query_docs(question, collection_name=None, version=None, k=3, use_cache=None
                 'query': question
             }
             cache.set(question, cacheable_result, version, k)
+        stats['cache_store_time'] = time.time() - cache_store_start
+        
+        query_result = {
+            'result': answer,
+            'source_documents': source_docs,  # Keep original for return value
+            'query': question,
+            'stats': stats
+        }
         
         # Log to monitoring
         monitor = get_query_monitor()
-        monitor.log_query(question, version, response_time=response_time,
+        monitor.log_query(question, version, response_time=stats['total_time'],
                          source_count=len(query_result.get('source_documents', [])),
                          cached=False)
         
@@ -194,18 +229,34 @@ def query_simple(question, collection_name=None, version=None, k=3):
         k: Number of documents to retrieve
         
     Returns:
-        dict: Query result with answer and source documents
+        dict: Query result with answer, source documents, and timing statistics
     """
     if not question or not question.strip():
         raise ValueError("Question cannot be empty")
     
+    # Initialize timing statistics
+    stats = {
+        'total_time': 0.0,
+        'cache_lookup_time': 0.0,
+        'llm_init_time': 0.0,
+        'vector_db_init_time': 0.0,
+        'document_retrieval_time': 0.0,
+        'answer_generation_time': 0.0,
+        'cache_store_time': 0.0
+    }
+    overall_start = time.time()
+    
     logger.info(f"Processing simple query: {question[:100]}...")
     
     # Initialize the language model
+    llm_start = time.time()
     llm = ChatOllama(model=LLM_MODEL, temperature=0)
+    stats['llm_init_time'] = time.time() - llm_start
     
     # Get the vector database instance
+    db_start = time.time()
     db = get_vector_db(collection_name=collection_name, version=version)
+    stats['vector_db_init_time'] = time.time() - db_start
     
     # Get prompt template
     _, prompt = get_prompt()
@@ -227,6 +278,7 @@ def query_simple(question, collection_name=None, version=None, k=3):
     # Execute query
     try:
         # Get source documents - try different methods based on LangChain version
+        retrieval_start = time.time()
         try:
             source_docs = retriever.invoke(question)
         except (AttributeError, TypeError):
@@ -234,16 +286,23 @@ def query_simple(question, collection_name=None, version=None, k=3):
                 source_docs = retriever.get_relevant_documents(question)
             except (AttributeError, TypeError):
                 source_docs = []
-        answer = rag_chain.invoke(question)
+        stats['document_retrieval_time'] = time.time() - retrieval_start
         
-        logger.info(f"Query processed successfully. Retrieved {len(source_docs)} documents")
+        # Get answer from the chain
+        answer_start = time.time()
+        answer = rag_chain.invoke(question)
+        stats['answer_generation_time'] = time.time() - answer_start
+        
+        stats['total_time'] = time.time() - overall_start
+        logger.info(f"Query processed successfully. Retrieved {len(source_docs)} documents in {stats['total_time']:.2f}s")
         
         # Note: source_documents are kept as Document objects for consistency
         # They will be converted to dicts in app.py for JSON serialization
         return {
             'result': answer,
             'source_documents': source_docs,
-            'query': question
+            'query': question,
+            'stats': stats
         }
     except Exception as e:
         logger.error(f"Error processing query: {e}")

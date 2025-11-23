@@ -31,5 +31,25 @@ export class QueryResultsComponent {
       // Could show a toast notification here
     });
   }
+
+  formatTime(seconds: number | undefined): string {
+    if (!seconds || seconds === 0) {
+      return '0ms';
+    }
+    if (seconds < 0.001) {
+      return '<1ms';
+    }
+    if (seconds < 1) {
+      return `${(seconds * 1000).toFixed(1)}ms`;
+    }
+    return `${seconds.toFixed(3)}s`;
+  }
+
+  getPercentage(value: number | undefined, total: number | undefined): string {
+    if (!value || !total || total === 0) {
+      return '0';
+    }
+    return ((value / total) * 100).toFixed(1);
+  }
 }
 

@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { finalize } from 'rxjs/operators';
 import { QueryService } from '../../core/services/query.service';
 import { CollectionService } from '../../core/services/collection.service';
 import { QueryState } from '../../core/state/query.state';
@@ -43,6 +44,11 @@ export class QueryComponent {
   }
 
   onSubmit(): void {
+    // Prevent multiple submissions
+    if (this.queryState.loading()) {
+      return;
+    }
+
     const query = this.queryText().trim();
     if (!query) {
       return;
@@ -58,7 +64,12 @@ export class QueryComponent {
       simple: this.useSimple()
     };
 
-    this.queryService.query(request).subscribe({
+    this.queryService.query(request).pipe(
+      finalize(() => {
+        // Ensure loading is always set to false when request completes
+        this.queryState.setLoading(false);
+      })
+    ).subscribe({
       next: (response) => {
         this.queryState.setQuery(response);
       },
