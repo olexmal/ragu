@@ -232,3 +232,194 @@ class TestChunking:
         for chunk in chunks:
             assert len(chunk.page_content) <= 1200  # chunk_size + some margin
 
+
+class TestConfluenceEmbedding:
+    """Test Confluence page embedding functionality."""
+    
+    @patch('embed.ConfluenceIntegration')
+    @patch('embed.OllamaEmbeddings')
+    @patch('embed.Chroma')
+    def test_embed_confluence_page_success(self, mock_chroma, mock_embeddings, mock_confluence_class):
+        """Test successfully embedding a Confluence page."""
+        from embed import embed_confluence_page
+        
+        # Mock Confluence integration
+        mock_confluence = Mock()
+        mock_page = {
+            'id': '123456',
+            'title': 'Test Page',
+            'body': {
+                'storage': {
+                    'value': '<p>This is test content from Confluence page.</p>'
+                }
+            },
+            'space': {'key': 'TEST', 'name': 'Test Space'},
+            'version': {'number': 1}
+        }
+        mock_confluence.fetch_page.return_value = mock_page
+        mock_confluence.get_page_content.return_value = 'This is test content from Confluence page.'
+        mock_confluence.get_page_metadata.return_value = {
+            'source': 'confluence',
+            'page_id': '123456',
+            'page_title': 'Test Page',
+            'space_key': 'TEST',
+            'space_name': 'Test Space',
+            'version': 1,
+            'url': 'https://test.atlassian.net/pages/viewpage.action?pageId=123456'
+        }
+        mock_confluence_class.return_value = mock_confluence
+        
+        # Mock Chroma
+        mock_chroma_instance = Mock()
+        mock_chroma.from_documents.return_value = mock_chroma_instance
+        
+        # Mock get_or_create_collection_helper
+        with patch('embed.get_or_create_collection_helper', return_value=(None, False)):
+            result = embed_confluence_page(
+                page_id="123456",
+                confluence_config={
+                    'url': 'https://test.atlassian.net',
+                    'instance_type': 'cloud',
+                    'api_token': 'test-token'
+                }
+            )
+            
+            assert result == mock_chroma_instance
+            mock_confluence.fetch_page.assert_called_once_with("123456", expand="body.storage,space,version")
+            mock_chroma.from_documents.assert_called_once()
+    
+    @patch('embed.ConfluenceIntegration')
+    def test_embed_confluence_page_not_found(self, mock_confluence_class):
+        """Test embedding when page is not found."""
+        from embed import embed_confluence_page
+        
+        mock_confluence = Mock()
+        mock_confluence.fetch_page.return_value = None
+        mock_confluence_class.return_value = mock_confluence
+        
+        with pytest.raises(ValueError, match="Failed to fetch"):
+            embed_confluence_page(
+                page_id="999999",
+                confluence_config={
+                    'url': 'https://test.atlassian.net',
+                    'instance_type': 'cloud',
+                    'api_token': 'test-token'
+                }
+            )
+    
+    @patch('embed.ConfluenceIntegration')
+    def test_embed_confluence_page_no_content(self, mock_confluence_class):
+        """Test embedding when page has no content."""
+        from embed import embed_confluence_page
+        
+        mock_confluence = Mock()
+        mock_page = {
+            'id': '123456',
+            'title': 'Empty Page',
+            'body': {}
+        }
+        mock_confluence.fetch_page.return_value = mock_page
+        mock_confluence.get_page_content.return_value = ""
+        mock_confluence_class.return_value = mock_confluence
+        
+        with pytest.raises(ValueError, match="No content found"):
+            embed_confluence_page(
+                page_id="123456",
+                confluence_config={
+                    'url': 'https://test.atlassian.net',
+                    'instance_type': 'cloud',
+                    'api_token': 'test-token'
+                }
+            )
+    
+    @patch('embed.embed_confluence_page')
+    def test_embed_confluence_pages_multiple(self, mock_embed_page):
+        """Test embedding multiple Confluence pages."""
+        from embed import embed_confluence_pages
+        
+        mock_db = Mock()
+        mock_embed_page.return_value = mock_db
+        
+        confluence_config = {
+            'url': 'https://test.atlassian.net',
+            'instance_type': 'cloud',
+            'api_token': 'test-token'
+        }
+        
+        results = embed_confluence_pages(
+            page_ids=["123", "456", "789"],
+            confluence_config=confluence_config
+        )
+        
+        assert results['success'] == 3
+        assert results['failed'] == 0
+        assert mock_embed_page.call_count == 3
+    
+    @patch('embed.embed_confluence_page')
+    def test_embed_confluence_pages_with_failures(self, mock_embed_page):
+        """Test embedding multiple pages with some failures."""
+        from embed import embed_confluence_pages
+        
+        mock_db = Mock()
+        # First succeeds, second fails, third succeeds
+        mock_embed_page.side_effect = [mock_db, ValueError("Page not found"), mock_db]
+        
+        confluence_config = {
+            'url': 'https://test.atlassian.net',
+            'instance_type': 'cloud',
+            'api_token': 'test-token'
+        }
+        
+        results = embed_confluence_pages(
+            page_ids=["123", "456", "789"],
+            confluence_config=confluence_config
+        )
+        
+        assert results['success'] == 2
+        assert results['failed'] == 1
+        assert len(results['errors']) == 1
+        assert results['errors'][0]['page_id'] == "456"
+    
+    @patch('embed.ConfluenceIntegration')
+    @patch('embed.OllamaEmbeddings')
+    @patch('embed.Chroma')
+    def test_embed_confluence_page_with_version(self, mock_chroma, mock_embeddings, mock_confluence_class):
+        """Test embedding Confluence page with version."""
+        from embed import embed_confluence_page
+        
+        mock_confluence = Mock()
+        mock_page = {
+            'id': '123456',
+            'title': 'Test Page',
+            'body': {'storage': {'value': '<p>Content</p>'}},
+            'space': {'key': 'TEST'},
+            'version': {'number': 1}
+        }
+        mock_confluence.fetch_page.return_value = mock_page
+        mock_confluence.get_page_content.return_value = 'Content'
+        mock_confluence.get_page_metadata.return_value = {
+            'source': 'confluence',
+            'page_id': '123456',
+            'page_title': 'Test Page',
+            'space_key': 'TEST'
+        }
+        mock_confluence_class.return_value = mock_confluence
+        
+        mock_chroma_instance = Mock()
+        mock_chroma.from_documents.return_value = mock_chroma_instance
+        
+        with patch('embed.get_or_create_collection_helper', return_value=(None, False)):
+            result = embed_confluence_page(
+                page_id="123456",
+                confluence_config={
+                    'url': 'https://test.atlassian.net',
+                    'instance_type': 'cloud',
+                    'api_token': 'test-token'
+                },
+                version="1.2.3"
+            )
+            
+            # Verify collection name includes version
+            call_args = mock_chroma.from_documents.call_args
+            assert "1.2.3" in call_args.kwargs['collection_name']
+

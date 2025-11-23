@@ -12,9 +12,11 @@ from dotenv import load_dotenv
 
 # Handle imports for both module and standalone execution
 if __name__ == '__main__':
-    from embed import embed_file, embed_directory
+    from embed import embed_file, embed_directory, embed_confluence_page, embed_confluence_pages
     from query import query_docs, query_simple
     from utils import setup_logging
+    from settings import get_confluence_settings, save_confluence_settings
+    from confluence import ConfluenceIntegration
     # Multi-version and history not available in standalone mode
     query_multiple_versions = None
     compare_versions = None
@@ -22,13 +24,15 @@ if __name__ == '__main__':
     requires_auth = lambda f: f  # No-op decorator
     requires_write_auth = lambda f: f
 else:
-    from .embed import embed_file, embed_directory
+    from .embed import embed_file, embed_directory, embed_confluence_page, embed_confluence_pages
     from .query import query_docs, query_simple
     from .multi_version_query import query_multiple_versions, compare_versions
     from .query_history import get_query_history
     from .utils import setup_logging
     from .auth import requires_auth, requires_write_auth, get_auth_status
     from .code_extractor import extract_code_from_document, format_code_for_response
+    from .settings import get_confluence_settings, save_confluence_settings
+    from .confluence import ConfluenceIntegration
 
 load_dotenv()
 
@@ -605,6 +609,164 @@ def auth_status():
             }), 200
     except Exception as e:
         return jsonify({"error": f"Failed to get auth status: {str(e)}"}), 500
+
+
+@app.route('/settings/confluence', methods=['GET'])
+@requires_auth
+def get_confluence_settings_endpoint():
+    """Get current Confluence settings."""
+    try:
+        settings = get_confluence_settings()
+        # Don't return sensitive data in full
+        safe_settings = {**settings}
+        # Optionally mask password/token in response (or return empty)
+        if 'password' in safe_settings:
+            safe_settings['password'] = '***' if safe_settings['password'] else ''
+        if 'api_token' in safe_settings:
+            safe_settings['api_token'] = '***' if safe_settings['api_token'] else ''
+        return jsonify(safe_settings), 200
+    except Exception as e:
+        logger.error(f"Failed to get Confluence settings: {e}")
+        return jsonify({"error": f"Failed to get settings: {str(e)}"}), 500
+
+
+@app.route('/settings/confluence', methods=['POST'])
+@requires_write_auth
+def save_confluence_settings_endpoint():
+    """Save Confluence settings."""
+    if not request.is_json:
+        return jsonify({"error": "Content-Type must be application/json"}), 400
+    
+    data = request.json
+    if data is None:
+        return jsonify({"error": "Invalid or missing JSON body"}), 400
+    
+    try:
+        # Validate required fields
+        if 'url' not in data or not data['url']:
+            return jsonify({"error": "URL is required"}), 400
+        
+        if 'instance_type' not in data or data['instance_type'] not in ['cloud', 'server']:
+            return jsonify({"error": "instance_type must be 'cloud' or 'server'"}), 400
+        
+        # For cloud, require api_token or username+password
+        if data['instance_type'] == 'cloud':
+            if not data.get('api_token') and not (data.get('username') and data.get('password')):
+                return jsonify({"error": "Cloud instance requires api_token or username+password"}), 400
+        
+        # For server, require api_token or username+password
+        if data['instance_type'] == 'server':
+            if not data.get('api_token') and not (data.get('username') and data.get('password')):
+                return jsonify({"error": "Server instance requires api_token or username+password"}), 400
+        
+        # Save settings
+        success = save_confluence_settings(data)
+        if success:
+            return jsonify({"message": "Settings saved successfully"}), 200
+        else:
+            return jsonify({"error": "Failed to save settings"}), 500
+    except Exception as e:
+        logger.error(f"Failed to save Confluence settings: {e}")
+        return jsonify({"error": f"Failed to save settings: {str(e)}"}), 500
+
+
+@app.route('/confluence/test', methods=['POST'])
+@requires_write_auth
+def test_confluence_connection():
+    """Test Confluence connection with provided credentials."""
+    if not request.is_json:
+        return jsonify({"error": "Content-Type must be application/json"}), 400
+    
+    data = request.json
+    if data is None:
+        return jsonify({"error": "Invalid or missing JSON body"}), 400
+    
+    try:
+        # Validate required fields
+        if 'url' not in data or not data['url']:
+            return jsonify({"error": "URL is required"}), 400
+        
+        if 'instance_type' not in data or data['instance_type'] not in ['cloud', 'server']:
+            return jsonify({"error": "instance_type must be 'cloud' or 'server'"}), 400
+        
+        # Create Confluence integration instance
+        confluence = ConfluenceIntegration(
+            url=data['url'],
+            instance_type=data['instance_type'],
+            api_token=data.get('api_token'),
+            username=data.get('username'),
+            password=data.get('password')
+        )
+        
+        # Test connection
+        result = confluence.test_connection()
+        return jsonify(result), 200 if result['success'] else 400
+    except Exception as e:
+        logger.error(f"Confluence connection test failed: {e}")
+        return jsonify({
+            "success": False,
+            "message": f"Connection test failed: {str(e)}"
+        }), 500
+
+
+@app.route('/confluence/fetch', methods=['POST'])
+@requires_write_auth
+def fetch_confluence_pages():
+    """Fetch and embed Confluence pages."""
+    if not request.is_json:
+        return jsonify({"error": "Content-Type must be application/json"}), 400
+    
+    data = request.json
+    if data is None:
+        return jsonify({"error": "Invalid or missing JSON body"}), 400
+    
+    try:
+        # Get page IDs from request or from saved settings
+        page_ids = data.get('page_ids', [])
+        if not page_ids:
+            # Try to get from saved settings
+            settings = get_confluence_settings()
+            page_ids = settings.get('page_ids', [])
+        
+        if not page_ids:
+            return jsonify({"error": "No page IDs provided"}), 400
+        
+        # Get Confluence config from request or saved settings
+        confluence_config = data.get('confluence_config')
+        if not confluence_config:
+            # Get from saved settings
+            settings = get_confluence_settings()
+            if not settings.get('url'):
+                return jsonify({"error": "Confluence not configured. Please configure in Settings first."}), 400
+            confluence_config = {
+                'url': settings['url'],
+                'instance_type': settings.get('instance_type', 'cloud'),
+                'api_token': settings.get('api_token'),
+                'username': settings.get('username'),
+                'password': settings.get('password')
+            }
+        
+        # Optional parameters
+        collection_name = data.get('collection_name')
+        version = data.get('version')
+        overwrite = data.get('overwrite', False)
+        
+        # Embed pages
+        results = embed_confluence_pages(
+            page_ids=page_ids,
+            confluence_config=confluence_config,
+            collection_name=collection_name,
+            version=version,
+            overwrite=overwrite
+        )
+        
+        return jsonify({
+            "message": f"Processed {len(page_ids)} pages",
+            "results": results
+        }), 200
+    except Exception as e:
+        logger.error(f"Failed to fetch Confluence pages: {e}")
+        return jsonify({"error": f"Failed to fetch pages: {str(e)}"}), 500
 
 
 if __name__ == '__main__':
