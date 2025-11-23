@@ -4,7 +4,7 @@ Enables querying across multiple documentation versions simultaneously.
 """
 import os
 from typing import List, Dict, Any, Optional
-from langchain_community.chat_models import ChatOllama
+from langchain_ollama import ChatOllama
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser

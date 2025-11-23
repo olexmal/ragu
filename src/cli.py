@@ -131,7 +131,7 @@ def cmd_status(args):
     
     # Check Ollama
     try:
-        from langchain_community.chat_models import ChatOllama
+        from langchain_ollama import ChatOllama
         llm = ChatOllama(model=os.getenv('LLM_MODEL', 'mistral'))
         print("✓ Ollama: Available")
     except Exception as e:

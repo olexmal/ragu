@@ -47,7 +47,7 @@ def health():
     """Health check endpoint."""
     try:
         # Check if Ollama is accessible
-        from langchain_community.chat_models import ChatOllama
+        from langchain_ollama import ChatOllama
         llm = ChatOllama(model=os.getenv('LLM_MODEL', 'mistral'))
         # Simple test - just check if model is available
         
@@ -77,7 +77,7 @@ def health():
     """Health check endpoint."""
     try:
         # Check if Ollama is accessible
-        from langchain_community.chat_models import ChatOllama
+        from langchain_ollama import ChatOllama
         llm = ChatOllama(model=os.getenv('LLM_MODEL', 'mistral'))
         # Simple test - just check if model is available
         return jsonify({

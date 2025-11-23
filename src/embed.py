@@ -7,8 +7,8 @@ from pathlib import Path
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_community.document_loaders import UnstructuredHTMLLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import OllamaEmbeddings
-from langchain_community.vectorstores.chroma import Chroma
+from langchain_ollama import OllamaEmbeddings
+from langchain_chroma import Chroma
 from dotenv import load_dotenv
 import time
 from .get_vector_db import get_or_create_collection
@@ -97,8 +97,7 @@ def embed_file(file_path, collection_name=None, version=None, overwrite=False):
     
     # Create embeddings
     embedding = OllamaEmbeddings(
-        model=TEXT_EMBEDDING_MODEL,
-        show_progress=True
+        model=TEXT_EMBEDDING_MODEL
     )
     
     # Handle collection creation or update
