@@ -13,7 +13,10 @@ export class ApiService {
   constructor(private http: HttpClient) {}
 
   protected get<T>(endpoint: string, params?: HttpParams): Observable<T> {
-    return this.http.get<T>(`${this.apiUrl}${endpoint}`, { params })
+    return this.http.get<T>(`${this.apiUrl}${endpoint}`, { 
+      params,
+      withCredentials: true // Send cookies with requests
+    })
       .pipe(
         retry(2),
         catchError(this.handleError)
@@ -21,15 +24,23 @@ export class ApiService {
   }
 
   protected post<T>(endpoint: string, body: any, options?: { headers?: HttpHeaders }): Observable<T> {
-    return this.http.post<T>(`${this.apiUrl}${endpoint}`, body, options)
+    const isLoginRequest = endpoint.includes('/auth/login');
+    
+    return this.http.post<T>(`${this.apiUrl}${endpoint}`, body, {
+      ...options,
+      withCredentials: true // Send cookies with requests
+    })
       .pipe(
-        retry(2),
+        // Don't retry login requests - we want to show errors immediately
+        retry(isLoginRequest ? 0 : 2),
         catchError(this.handleError)
       );
   }
 
   protected delete<T>(endpoint: string): Observable<T> {
-    return this.http.delete<T>(`${this.apiUrl}${endpoint}`)
+    return this.http.delete<T>(`${this.apiUrl}${endpoint}`, {
+      withCredentials: true // Send cookies with requests
+    })
       .pipe(
         retry(2),
         catchError(this.handleError)
@@ -56,11 +67,14 @@ export class ApiService {
       errorMessage = `Error Code: ${error.status}\nMessage: ${error.message}`;
       if (error.error?.error) {
         errorMessage = error.error.error;
+      } else if (error.error?.message) {
+        errorMessage = error.error.message;
       }
     }
     
     console.error(errorMessage);
-    return throwError(() => new Error(errorMessage));
+    // Preserve the original error structure so components can access error.error
+    return throwError(() => error);
   };
 }
 

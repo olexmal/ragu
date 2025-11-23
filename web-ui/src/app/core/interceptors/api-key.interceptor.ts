@@ -1,20 +1,13 @@
 import { HttpInterceptorFn } from '@angular/common/http';
-import { inject } from '@angular/core';
-import { AuthService } from '../services/auth.service';
 
+/**
+ * API Key interceptor - no longer needed for session-based authentication.
+ * Sessions are handled automatically by the browser with withCredentials: true.
+ * This interceptor is kept for backward compatibility but does nothing.
+ */
 export const apiKeyInterceptor: HttpInterceptorFn = (req, next) => {
-  const authService = inject(AuthService);
-  const apiKey = authService.getApiKey();
-
-  if (apiKey) {
-    const cloned = req.clone({
-      setHeaders: {
-        'X-API-Key': apiKey
-      }
-    });
-    return next(cloned);
-  }
-
+  // Session-based authentication - no API key needed
+  // Cookies are sent automatically by the browser
   return next(req);
 };
 

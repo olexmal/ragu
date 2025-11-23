@@ -1,19 +1,17 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
-import { tap, catchError } from 'rxjs/operators';
+import { Observable, of, throwError } from 'rxjs';
+import { tap, catchError, map } from 'rxjs/operators';
 import { ApiService } from './api.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService extends ApiService {
-  private readonly API_KEY_STORAGE_KEY = 'rag_api_key';
   private readonly REMEMBER_ME_KEY = 'rag_remember_me';
 
   // Signals for reactive state
   isAuthenticated = signal<boolean>(false);
-  apiKey = signal<string | null>(null);
   authEnabled = signal<boolean>(false);
 
   constructor(http: HttpClient) {
@@ -22,47 +20,64 @@ export class AuthService extends ApiService {
     this.checkAuthStatus();
   }
 
-  login(apiKey: string, rememberMe: boolean = false): Observable<boolean> {
-    // If auth is disabled, allow empty API key
-    if (!this.authEnabled() && !apiKey.trim()) {
+  login(username: string, password: string, rememberMe: boolean = false): Observable<boolean> {
+    // If auth is disabled, automatically authenticate
+    if (!this.authEnabled()) {
       this.isAuthenticated.set(true);
       return of(true);
     }
 
-    // If auth is enabled, API key is required
-    if (this.authEnabled() && !apiKey.trim()) {
-      return new Observable<boolean>(observer => {
-        observer.error(new Error('API key is required when authentication is enabled'));
-      });
-    }
-
-    // Store API key if provided
-    if (apiKey.trim()) {
-      if (rememberMe) {
-        localStorage.setItem(this.API_KEY_STORAGE_KEY, apiKey);
-        localStorage.setItem(this.REMEMBER_ME_KEY, 'true');
-      } else {
-        sessionStorage.setItem(this.API_KEY_STORAGE_KEY, apiKey);
-      }
-      this.apiKey.set(apiKey);
-    }
-
-    this.isAuthenticated.set(true);
-    
-    return of(true);
+    // Make login request to backend
+    return this.post<{ success: boolean; message: string; username: string }>('/auth/login', {
+      username,
+      password
+    }).pipe(
+      map((response: { success: boolean; message: string; username: string }) => {
+        console.log('Login response:', response);
+        if (response && response.success === true) {
+          // Store username if remember me is checked
+          if (rememberMe) {
+            localStorage.setItem('rag_username', username);
+            localStorage.setItem(this.REMEMBER_ME_KEY, 'true');
+          } else {
+            sessionStorage.setItem('rag_username', username);
+          }
+          this.isAuthenticated.set(true);
+          return true;
+        }
+        // If response doesn't have success=true, treat as failure
+        this.isAuthenticated.set(false);
+        throw new Error(response?.message || 'Login failed');
+      }),
+      catchError((error: any) => {
+        console.error('Login catchError:', error);
+        this.isAuthenticated.set(false);
+        // Preserve the original error so the component can access error.error.message
+        return throwError(() => error);
+      })
+    );
   }
 
-  logout(): void {
-    localStorage.removeItem(this.API_KEY_STORAGE_KEY);
-    sessionStorage.removeItem(this.API_KEY_STORAGE_KEY);
-    localStorage.removeItem(this.REMEMBER_ME_KEY);
-    this.apiKey.set(null);
-    this.isAuthenticated.set(false);
+  logout(): Observable<boolean> {
+    return this.post<{ success: boolean; message: string }>('/auth/logout', {}).pipe(
+      map(() => {
+        localStorage.removeItem('rag_username');
+        sessionStorage.removeItem('rag_username');
+        localStorage.removeItem(this.REMEMBER_ME_KEY);
+        this.isAuthenticated.set(false);
+        return true;
+      }),
+      catchError((error: any) => {
+        // Even if logout fails on server, clear local state
+        localStorage.removeItem('rag_username');
+        sessionStorage.removeItem('rag_username');
+        localStorage.removeItem(this.REMEMBER_ME_KEY);
+        this.isAuthenticated.set(false);
+        return of(true); // Return success anyway
+      })
+    );
   }
 
-  getApiKey(): string | null {
-    return this.apiKey();
-  }
 
   getAuthStatus(): Observable<any> {
     return this.get('/auth/status');
@@ -73,9 +88,14 @@ export class AuthService extends ApiService {
       tap((status: any) => {
         this.authEnabled.set(status.enabled === true);
         
-        // If auth is disabled, automatically authenticate
-        if (!status.enabled) {
+        // Check if user is authenticated from session
+        if (status.authenticated === true) {
           this.isAuthenticated.set(true);
+        } else if (!status.enabled) {
+          // If auth is disabled, automatically authenticate
+          this.isAuthenticated.set(true);
+        } else {
+          this.isAuthenticated.set(false);
         }
       }),
       catchError(() => {
@@ -88,12 +108,8 @@ export class AuthService extends ApiService {
   }
 
   private loadStoredApiKey(): void {
-    const storedKey = localStorage.getItem(this.API_KEY_STORAGE_KEY) || 
-                     sessionStorage.getItem(this.API_KEY_STORAGE_KEY);
-    
-    if (storedKey) {
-      this.apiKey.set(storedKey);
-      this.isAuthenticated.set(true);
-    }
+    // Check if user was previously logged in (session-based, so just check auth status)
+    // The session cookie will be sent automatically by the browser
+    this.checkAuthStatus();
   }
 }

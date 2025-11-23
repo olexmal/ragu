@@ -2,7 +2,7 @@
 Flask API Server
 RESTful API for embedding and querying documentation.
 """
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session
 from flask_cors import CORS
 import os
 import sys
@@ -37,7 +37,14 @@ else:
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+# Configure session
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = os.getenv('SESSION_SECURE', 'false').lower() == 'true'
+
+# Enable CORS with credentials support for session cookies
+CORS(app, supports_credentials=True)
 
 # Ensure temp directory exists
 TEMP_DIR = Path(os.getenv('TEMP_FOLDER', './_temp'))
@@ -744,6 +751,58 @@ def extract_code():
     except Exception as e:
         logger.error(f"Code extraction failed: {e}")
         return jsonify({"error": f"Code extraction failed: {str(e)}"}), 500
+
+
+@app.route('/auth/login', methods=['POST'])
+def login():
+    """Login endpoint for username/password authentication."""
+    try:
+        from .auth import verify_credentials, VALID_USERNAME
+        
+        data = request.get_json()
+        username = data.get('username', '').strip()
+        password = data.get('password', '').strip()
+        
+        if not username or not password:
+            return jsonify({
+                "error": "Missing credentials",
+                "message": "Username and password are required"
+            }), 400
+        
+        if verify_credentials(username, password):
+            session['authenticated'] = True
+            session['username'] = username
+            logger.info(f"User {username} logged in successfully")
+            return jsonify({
+                "success": True,
+                "message": "Login successful",
+                "username": username
+            }), 200
+        else:
+            logger.warning(f"Failed login attempt for username: {username}")
+            return jsonify({
+                "error": "Invalid credentials",
+                "message": "Username or password is incorrect"
+            }), 401
+    except Exception as e:
+        logger.error(f"Login error: {e}")
+        return jsonify({"error": f"Login failed: {str(e)}"}), 500
+
+
+@app.route('/auth/logout', methods=['POST'])
+def logout():
+    """Logout endpoint."""
+    try:
+        username = session.get('username', 'unknown')
+        session.clear()
+        logger.info(f"User {username} logged out")
+        return jsonify({
+            "success": True,
+            "message": "Logout successful"
+        }), 200
+    except Exception as e:
+        logger.error(f"Logout error: {e}")
+        return jsonify({"error": f"Logout failed: {str(e)}"}), 500
 
 
 @app.route('/auth/status', methods=['GET'])

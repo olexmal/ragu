@@ -17,7 +17,8 @@ export class LoginComponent implements OnInit {
   private router: Router = inject(Router);
   private route: ActivatedRoute = inject(ActivatedRoute);
 
-  apiKey = '';
+  username = '';
+  password = '';
   rememberMe = false;
   error = '';
   authEnabled = this.authService.authEnabled;
@@ -31,32 +32,26 @@ export class LoginComponent implements OnInit {
   }
 
   onSubmit(): void {
-    // If auth is disabled, allow empty API key
-    if (!this.authService.authEnabled() && !this.apiKey.trim()) {
-      this.error = '';
-      const loginObservable: Observable<boolean> = this.authService.login('', this.rememberMe);
-      loginObservable.subscribe({
-        next: (success: boolean) => {
-          if (success) {
-            const returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/admin';
-            this.router.navigate([returnUrl]);
-          }
-        },
-        error: (error: any) => {
-          this.error = error.message || 'Login failed';
-        }
-      });
+    // If auth is disabled, automatically proceed
+    if (!this.authService.authEnabled()) {
+      const returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/admin';
+      this.router.navigate([returnUrl]);
       return;
     }
 
-    // If auth is enabled, API key is required
-    if (this.authService.authEnabled() && !this.apiKey.trim()) {
-      this.error = 'API key is required';
+    // Validate inputs
+    if (!this.username.trim()) {
+      this.error = 'Username is required';
+      return;
+    }
+
+    if (!this.password.trim()) {
+      this.error = 'Password is required';
       return;
     }
 
     this.error = '';
-    const loginObservable: Observable<boolean> = this.authService.login(this.apiKey, this.rememberMe);
+    const loginObservable: Observable<boolean> = this.authService.login(this.username, this.password, this.rememberMe);
     loginObservable.subscribe({
       next: (success: boolean) => {
         if (success) {
@@ -65,7 +60,25 @@ export class LoginComponent implements OnInit {
         }
       },
       error: (error: any) => {
-        this.error = error.message || 'Login failed';
+        console.error('Login error:', error);
+        
+        // Handle HTTP error response - check multiple possible error structures
+        if (error?.error?.message) {
+          // Backend error response: {error: "Invalid credentials", message: "..."}
+          this.error = error.error.message;
+        } else if (error?.error?.error) {
+          // Alternative error structure
+          this.error = error.error.error;
+        } else if (error?.message) {
+          // Error object with message
+          this.error = error.message;
+        } else if (typeof error === 'string') {
+          // String error
+          this.error = error;
+        } else {
+          // Fallback
+          this.error = 'Login failed. Please check your credentials.';
+        }
       }
     });
   }

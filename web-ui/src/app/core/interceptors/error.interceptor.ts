@@ -8,24 +8,19 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(req).pipe(
     catchError((error: HttpErrorResponse) => {
-      let errorMessage = 'An unknown error occurred';
-
-      if (error.status === 401) {
-        // Unauthorized - redirect to login
+      // Don't redirect on 401 if we're already on the login page
+      // This allows the login component to handle login errors
+      const isLoginRequest = req.url.includes('/auth/login');
+      
+      if (error.status === 401 && !isLoginRequest) {
+        // Unauthorized - redirect to login (but not for login requests themselves)
         router.navigate(['/login']);
-        errorMessage = 'Authentication required';
-      } else if (error.status === 403) {
-        errorMessage = 'Access forbidden';
-      } else if (error.status >= 500) {
-        errorMessage = 'Server error. Please try again later.';
-      } else if (error.error?.error) {
-        errorMessage = error.error.error;
-      } else if (error.message) {
-        errorMessage = error.message;
       }
 
-      console.error('HTTP Error:', errorMessage);
-      return throwError(() => new Error(errorMessage));
+      // Preserve the original error structure so components can access error.error.message
+      // Only create a new error if we need to transform it
+      console.error('HTTP Error:', error);
+      return throwError(() => error);
     })
   );
 };

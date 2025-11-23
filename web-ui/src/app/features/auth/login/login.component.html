@@ -6,7 +6,7 @@
       </h2>
       <p class="mt-2 text-center text-sm text-gray-600">
         @if (authEnabled()) {
-          Enter your API key to access the administration panel
+          Enter your credentials to access the administration panel
         } @else {
           Authentication is disabled. Click "Sign in" to continue.
         }
@@ -15,16 +15,29 @@
     <form class="mt-8 space-y-6" (ngSubmit)="onSubmit()">
       <div class="rounded-md shadow-sm -space-y-px">
         <div>
-          <label for="api-key" class="sr-only">API Key</label>
+          <label for="username" class="sr-only">Username</label>
           <input
-            id="api-key"
-            name="apiKey"
+            id="username"
+            name="username"
+            type="text"
+            [(ngModel)]="username"
+            required
+            autocomplete="username"
+            class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
+            placeholder="Username"
+          />
+        </div>
+        <div>
+          <label for="password" class="sr-only">Password</label>
+          <input
+            id="password"
+            name="password"
             type="password"
-            [(ngModel)]="apiKey"
-            [required]="authEnabled()"
-            [disabled]="!authEnabled()"
-            class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-            placeholder="API Key"
+            [(ngModel)]="password"
+            required
+            autocomplete="current-password"
+            class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
+            placeholder="Password"
           />
         </div>
       </div>

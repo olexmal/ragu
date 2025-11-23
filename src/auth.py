@@ -1,13 +1,13 @@
 """
 Authentication Module
-Provides API authentication support (optional).
+Provides username/password authentication with session management.
 """
 import os
 import hmac
 import hashlib
 import time
 from functools import wraps
-from flask import request, jsonify
+from flask import request, jsonify, session
 from dotenv import load_dotenv
 from .utils import setup_logging
 
@@ -16,10 +16,12 @@ load_dotenv()
 logger = setup_logging()
 
 # Authentication configuration
-API_KEY = os.getenv('API_KEY', None)
-API_KEY_HEADER = os.getenv('API_KEY_HEADER', 'X-API-Key')
-AUTH_ENABLED = os.getenv('AUTH_ENABLED', 'false').lower() == 'true'
+AUTH_ENABLED = os.getenv('AUTH_ENABLED', 'true').lower() == 'true'
 AUTH_REQUIRED_FOR = os.getenv('AUTH_REQUIRED_FOR', 'write').lower()  # 'all', 'write', 'none'
+
+# Hardcoded credentials (for now)
+VALID_USERNAME = 'admin'
+VALID_PASSWORD = '123QWEasd'
 
 
 def generate_api_key() -> str:
@@ -33,21 +35,31 @@ def generate_api_key() -> str:
     return secrets.token_urlsafe(32)
 
 
-def verify_api_key(provided_key: str) -> bool:
+def verify_credentials(username: str, password: str) -> bool:
     """
-    Verify an API key.
+    Verify username and password.
     
     Args:
-        provided_key: The API key to verify
+        username: The username to verify
+        password: The password to verify
         
     Returns:
-        bool: True if key is valid
+        bool: True if credentials are valid
     """
-    if not API_KEY:
-        return False
-    
     # Use constant-time comparison to prevent timing attacks
-    return hmac.compare_digest(provided_key, API_KEY)
+    username_valid = hmac.compare_digest(username, VALID_USERNAME)
+    password_valid = hmac.compare_digest(password, VALID_PASSWORD)
+    return username_valid and password_valid
+
+
+def is_authenticated() -> bool:
+    """
+    Check if the current session is authenticated.
+    
+    Returns:
+        bool: True if user is authenticated
+    """
+    return session.get('authenticated', False) and session.get('username') == VALID_USERNAME
 
 
 def requires_auth(f):
@@ -65,20 +77,11 @@ def requires_auth(f):
         if not AUTH_ENABLED:
             return f(*args, **kwargs)
         
-        # Get API key from header
-        api_key = request.headers.get(API_KEY_HEADER)
-        
-        if not api_key:
+        if not is_authenticated():
             return jsonify({
                 "error": "Authentication required",
-                "message": f"Missing {API_KEY_HEADER} header"
+                "message": "Please log in to access this resource"
             }), 401
-        
-        if not verify_api_key(api_key):
-            return jsonify({
-                "error": "Authentication failed",
-                "message": "Invalid API key"
-            }), 403
         
         return f(*args, **kwargs)
     
@@ -107,19 +110,11 @@ def requires_write_auth(f):
         
         # If auth is required for all, or this is a write operation
         if AUTH_REQUIRED_FOR == 'all' or (AUTH_REQUIRED_FOR == 'write' and is_write):
-            api_key = request.headers.get(API_KEY_HEADER)
-            
-            if not api_key:
+            if not is_authenticated():
                 return jsonify({
                     "error": "Authentication required",
-                    "message": f"Missing {API_KEY_HEADER} header"
+                    "message": "Please log in to access this resource"
                 }), 401
-            
-            if not verify_api_key(api_key):
-                return jsonify({
-                    "error": "Authentication failed",
-                    "message": "Invalid API key"
-                }), 403
         
         return f(*args, **kwargs)
     
@@ -136,7 +131,6 @@ def get_auth_status() -> dict:
     return {
         "enabled": AUTH_ENABLED,
         "required_for": AUTH_REQUIRED_FOR,
-        "api_key_configured": API_KEY is not None,
-        "header_name": API_KEY_HEADER
+        "authenticated": is_authenticated()
     }
 

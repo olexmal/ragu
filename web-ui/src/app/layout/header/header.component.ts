@@ -23,7 +23,16 @@ export class HeaderComponent {
   }
 
   logout(): void {
-    this.authService.logout();
+    this.authService.logout().subscribe({
+      next: () => {
+        // Redirect to login page after logout
+        window.location.href = '/login';
+      },
+      error: () => {
+        // Even if logout fails, redirect to login
+        window.location.href = '/login';
+      }
+    });
   }
 }
 
