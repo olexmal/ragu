@@ -15,7 +15,8 @@ if __name__ == '__main__':
     from embed import embed_file, embed_directory, embed_confluence_page, embed_confluence_pages
     from query import query_docs, query_simple
     from utils import setup_logging
-    from settings import get_confluence_settings, save_confluence_settings, get_system_settings, save_system_settings
+    from settings import get_confluence_settings, save_confluence_settings, get_system_settings, save_system_settings, get_llm_providers, save_llm_providers, get_active_llm_provider, get_active_embedding_provider
+    from llm_providers import LLMProviderFactory, EmbeddingProviderFactory
     from confluence import ConfluenceIntegration
     # Multi-version and history not available in standalone mode
     query_multiple_versions = None
@@ -31,7 +32,8 @@ else:
     from .utils import setup_logging
     from .auth import requires_auth, requires_write_auth, get_auth_status
     from .code_extractor import extract_code_from_document, format_code_for_response
-    from .settings import get_confluence_settings, save_confluence_settings, get_system_settings, save_system_settings
+    from .settings import get_confluence_settings, save_confluence_settings, get_system_settings, save_system_settings, get_llm_providers, save_llm_providers, get_active_llm_provider, get_active_embedding_provider
+    from .llm_providers import LLMProviderFactory, EmbeddingProviderFactory
     from .confluence import ConfluenceIntegration
 
 load_dotenv()
@@ -57,50 +59,42 @@ logger = setup_logging()
 def health():
     """Health check endpoint."""
     try:
-        # Check if Ollama is accessible
-        from langchain_ollama import ChatOllama
-        llm = ChatOllama(model=os.getenv('LLM_MODEL', 'mistral'))
-        # Simple test - just check if model is available
+        # Check if configured LLM provider is accessible
+        try:
+            provider_config = get_active_llm_provider()
+            llm = LLMProviderFactory.get_llm(provider_config['type'], provider_config)
+            llm_available = True
+            llm_provider = provider_config['type']
+        except Exception as e:
+            llm_available = False
+            llm_provider = 'unknown'
+            logger.warning(f"LLM provider check failed: {e}")
         
         # Include auth status if available
         auth_status = {}
         try:
-            if get_auth_status:
+            if 'get_auth_status' in globals() and get_auth_status:
                 auth_status = get_auth_status()
-        except:
+        except Exception:
+            # Gracefully handle any errors when retrieving auth status
+            # This allows the health check to continue even if auth status is unavailable
             pass
         
         response = {
-            "status": "healthy",
+            "status": "healthy" if llm_available else "degraded",
             "service": "RAG API",
-            "ollama_available": True
+            "llm_available": llm_available,
+            "llm_provider": llm_provider
         }
         response.update(auth_status)
         
-        return jsonify(response), 200
+        status_code = 200 if llm_available else 503
+        return jsonify(response), status_code
     except Exception as e:
         return jsonify({
             "status": "degraded",
             "service": "RAG API",
-            "ollama_available": False,
-            "error": str(e)
-        }), 503
-    """Health check endpoint."""
-    try:
-        # Check if Ollama is accessible
-        from langchain_ollama import ChatOllama
-        llm = ChatOllama(model=os.getenv('LLM_MODEL', 'mistral'))
-        # Simple test - just check if model is available
-        return jsonify({
-            "status": "healthy",
-            "service": "RAG API",
-            "ollama_available": True
-        }), 200
-    except Exception as e:
-        return jsonify({
-            "status": "degraded",
-            "service": "RAG API",
-            "ollama_available": False,
+            "llm_available": False,
             "error": str(e)
         }), 503
 
@@ -449,8 +443,11 @@ def list_collection_documents(version):
         
         documents = []
         if results and results.get('ids'):
+            # Use 'or []' to handle both missing key and None value cases
+            metadatas = results.get('metadatas') or []
             for i, doc_id in enumerate(results['ids']):
-                metadata = results.get('metadatas', [{}])[i] if results.get('metadatas') else {}
+                # Safely get metadata with bounds checking
+                metadata = metadatas[i] if i < len(metadatas) else {}
                 documents.append({
                     'id': doc_id,
                     'metadata': metadata,
@@ -809,7 +806,7 @@ def logout():
 def auth_status():
     """Get authentication configuration status."""
     try:
-        if get_auth_status:
+        if 'get_auth_status' in globals() and get_auth_status:
             status = get_auth_status()
             return jsonify(status), 200
         else:
@@ -817,7 +814,7 @@ def auth_status():
                 "enabled": False,
                 "message": "Authentication module not available"
             }), 200
-    except Exception as e:
+    except (NameError, AttributeError, Exception) as e:
         return jsonify({"error": f"Failed to get auth status: {str(e)}"}), 500
 
 
@@ -918,6 +915,122 @@ def save_system_settings_endpoint():
     except Exception as e:
         logger.error(f"Failed to save system settings: {e}")
         return jsonify({"error": f"Failed to save settings: {str(e)}"}), 500
+
+
+@app.route('/settings/llm-providers', methods=['GET'])
+@requires_auth
+def get_llm_providers_endpoint():
+    """Get all LLM provider configurations."""
+    try:
+        providers = get_llm_providers()
+        return jsonify(providers), 200
+    except Exception as e:
+        logger.error(f"Failed to get LLM provider settings: {e}")
+        return jsonify({"error": f"Failed to get settings: {str(e)}"}), 500
+
+
+@app.route('/settings/llm-providers', methods=['POST'])
+@requires_write_auth
+def save_llm_providers_endpoint():
+    """Save LLM provider configurations."""
+    if not request.is_json:
+        return jsonify({"error": "Content-Type must be application/json"}), 400
+    
+    data = request.json
+    if data is None:
+        return jsonify({"error": "Invalid or missing JSON body"}), 400
+    
+    try:
+        # Validate structure
+        if 'llm_providers' not in data:
+            return jsonify({"error": "llm_providers is required"}), 400
+        if 'embedding_providers' not in data:
+            return jsonify({"error": "embedding_providers is required"}), 400
+        
+        # Save settings
+        success = save_llm_providers(data)
+        if success:
+            return jsonify({"message": "LLM provider settings saved successfully"}), 200
+        else:
+            return jsonify({"error": "Failed to save settings"}), 500
+    except Exception as e:
+        logger.error(f"Failed to save LLM provider settings: {e}")
+        return jsonify({"error": f"Failed to save settings: {str(e)}"}), 500
+
+
+@app.route('/settings/llm-providers/active', methods=['GET'])
+@requires_auth
+def get_active_llm_providers_endpoint():
+    """Get active LLM and embedding provider configurations."""
+    try:
+        active_llm = get_active_llm_provider()
+        active_embedding = get_active_embedding_provider()
+        return jsonify({
+            "llm": active_llm,
+            "embedding": active_embedding
+        }), 200
+    except Exception as e:
+        logger.error(f"Failed to get active LLM providers: {e}")
+        return jsonify({"error": f"Failed to get active providers: {str(e)}"}), 500
+
+
+@app.route('/settings/llm-providers/test', methods=['POST'])
+@requires_write_auth
+def test_llm_provider_endpoint():
+    """Test LLM or embedding provider connection with provided configuration."""
+    if not request.is_json:
+        return jsonify({"error": "Content-Type must be application/json"}), 400
+    
+    data = request.json
+    if data is None:
+        return jsonify({"error": "Invalid or missing JSON body"}), 400
+    
+    try:
+        provider_type = data.get('type')
+        if not provider_type:
+            return jsonify({"error": "Provider type is required"}), 400
+        
+        provider_category = data.get('category', 'llm')  # Default to 'llm' for backward compatibility
+        if provider_category not in ['llm', 'embedding']:
+            return jsonify({"error": "Provider category must be 'llm' or 'embedding'"}), 400
+        
+        config = data.get('config', {})
+        # Allow empty dicts as factories use defaults; only reject None
+        if config is None:
+            return jsonify({"error": "Provider configuration is required"}), 400
+        
+        # Test provider connection based on category
+        try:
+            if provider_category == 'embedding':
+                # Test embedding provider
+                embedding = EmbeddingProviderFactory.get_embeddings(provider_type, config)
+                # Try to embed a simple test text
+                test_response = embedding.embed_query("test")
+                return jsonify({
+                    "success": True,
+                    "message": f"Successfully connected to {provider_type} embedding provider",
+                    "test_response": f"Embedding generated (dimension: {len(test_response)})"
+                }), 200
+            else:
+                # Test LLM provider
+                llm = LLMProviderFactory.get_llm(provider_type, config)
+                # Try to invoke with a simple test
+                test_response = llm.invoke("Say 'test' if you can read this.")
+                return jsonify({
+                    "success": True,
+                    "message": f"Successfully connected to {provider_type} LLM provider",
+                    "test_response": str(test_response.content) if hasattr(test_response, 'content') else str(test_response)
+                }), 200
+        except Exception as e:
+            logger.error(f"Provider test failed: {e}")
+            provider_name = f"{provider_type} {provider_category} provider"
+            return jsonify({
+                "success": False,
+                "message": f"Failed to connect to {provider_name}: {str(e)}"
+            }), 503  # Return 503 Service Unavailable for connection failures
+    except Exception as e:
+        logger.error(f"Error testing provider: {e}")
+        return jsonify({"error": f"Failed to test provider: {str(e)}"}), 500
 
 
 @app.route('/confluence/test', methods=['POST'])

@@ -16,8 +16,8 @@ export class AuthService extends ApiService {
 
   constructor(http: HttpClient) {
     super(http);
+    // loadStoredApiKey() calls checkAuthStatus() internally, so we only need to call one
     this.loadStoredApiKey();
-    this.checkAuthStatus();
   }
 
   login(username: string, password: string, rememberMe: boolean = false): Observable<boolean> {

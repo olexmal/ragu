@@ -19,9 +19,13 @@ logger = setup_logging()
 AUTH_ENABLED = os.getenv('AUTH_ENABLED', 'true').lower() == 'true'
 AUTH_REQUIRED_FOR = os.getenv('AUTH_REQUIRED_FOR', 'write').lower()  # 'all', 'write', 'none'
 
-# Hardcoded credentials (for now)
-VALID_USERNAME = 'admin'
-VALID_PASSWORD = '123QWEasd'
+# Credentials from environment variables
+VALID_USERNAME = os.getenv('AUTH_USERNAME', 'admin')
+VALID_PASSWORD = os.getenv('AUTH_PASSWORD', '123QWEasd')
+
+# Warn if using default credentials in production
+if VALID_USERNAME == 'admin' and VALID_PASSWORD == '123QWEasd':
+    logger.warning("Using default credentials. Set AUTH_USERNAME and AUTH_PASSWORD environment variables for production use.")
 
 
 def generate_api_key() -> str:

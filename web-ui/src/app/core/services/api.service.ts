@@ -48,7 +48,10 @@ export class ApiService {
   }
 
   protected postFormData<T>(endpoint: string, formData: FormData, headers?: HttpHeaders): Observable<T> {
-    return this.http.post<T>(`${this.apiUrl}${endpoint}`, formData, { headers })
+    return this.http.post<T>(`${this.apiUrl}${endpoint}`, formData, { 
+      headers,
+      withCredentials: true // Send cookies with requests
+    })
       .pipe(
         catchError(this.handleError)
       );

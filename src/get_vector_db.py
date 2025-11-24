@@ -3,9 +3,10 @@ Vector Database Module
 Initializes and manages ChromaDB connection with version-aware collections.
 """
 import os
-from langchain_ollama import OllamaEmbeddings
 from langchain_chroma import Chroma
 from dotenv import load_dotenv
+from .llm_providers import EmbeddingProviderFactory
+from .settings import get_active_embedding_provider
 
 # Load environment variables
 load_dotenv()
@@ -33,9 +34,8 @@ def get_vector_db(collection_name=None, version=None):
         final_collection_name = collection_name or COLLECTION_NAME
     
     # Initialize embedding function
-    embedding = OllamaEmbeddings(
-        model=TEXT_EMBEDDING_MODEL
-    )
+    provider_config = get_active_embedding_provider()
+    embedding = EmbeddingProviderFactory.get_embeddings(provider_config['type'], provider_config)
     
     # Create or load ChromaDB instance
     db = Chroma(

@@ -4,7 +4,6 @@ Enables querying across multiple documentation versions simultaneously.
 """
 import os
 from typing import List, Dict, Any, Optional
-from langchain_ollama import ChatOllama
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
@@ -15,6 +14,8 @@ from .get_vector_db import get_vector_db
 from .utils import setup_logging
 from .cache import get_cache
 from .monitoring import get_query_monitor
+from .llm_providers import LLMProviderFactory
+from .settings import get_active_llm_provider
 import time
 
 load_dotenv()
@@ -55,7 +56,8 @@ def query_multiple_versions(question: str, versions: List[str],
         return cached_result
     
     # Initialize LLM
-    llm = ChatOllama(model=LLM_MODEL, temperature=0)
+    provider_config = get_active_llm_provider()
+    llm = LLMProviderFactory.get_llm(provider_config['type'], provider_config)
     
     # Get retrievers for each version
     retrievers = []

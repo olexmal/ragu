@@ -1,0 +1,21 @@
+{
+  "llm_providers": {
+    "ollama": {
+      "enabled": true,
+      "is_active": true,
+      "type": "ollama",
+      "model": "mistral",
+      "base_url": "http://localhost:11434",
+      "temperature": 0
+    }
+  },
+  "embedding_providers": {
+    "ollama": {
+      "enabled": true,
+      "is_active": true,
+      "type": "ollama",
+      "model": "nomic-embed-text",
+      "base_url": "http://localhost:11434"
+    }
+  }
+}

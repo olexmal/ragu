@@ -1,0 +1,21 @@
+// Generate unique ID for each instance
+:host {
+  display: inline-block;
+}
+
+// Ensure tooltip doesn't interfere with layout
+.group {
+  position: relative;
+}
+
+// Tooltip positioning adjustments for better visibility
+.group:hover .group-hover\:visible {
+  visibility: visible;
+}
+
+// Ensure tooltip text wraps properly
+.whitespace-normal {
+  white-space: normal;
+  word-wrap: break-word;
+}
+

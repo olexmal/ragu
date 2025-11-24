@@ -7,7 +7,6 @@ from pathlib import Path
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_community.document_loaders import UnstructuredHTMLLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_ollama import OllamaEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from dotenv import load_dotenv
@@ -17,6 +16,8 @@ from .get_vector_db import get_or_create_collection
 from .utils import detect_document_format, extract_version_from_path, setup_logging
 from .monitoring import get_embedding_monitor
 from .confluence import ConfluenceIntegration
+from .llm_providers import EmbeddingProviderFactory
+from .settings import get_active_embedding_provider
 
 load_dotenv()
 
@@ -99,9 +100,8 @@ def embed_file(file_path, collection_name=None, version=None, overwrite=False):
                 chunk.metadata['version'] = extracted_version
     
     # Create embeddings
-    embedding = OllamaEmbeddings(
-        model=TEXT_EMBEDDING_MODEL
-    )
+    provider_config = get_active_embedding_provider()
+    embedding = EmbeddingProviderFactory.get_embeddings(provider_config['type'], provider_config)
     
     # Handle collection creation or update
     if overwrite:
@@ -241,8 +241,8 @@ def embed_confluence_page(page_id: str, confluence_config: Dict[str, Any],
         password=confluence_config.get('password')
     )
     
-    # Fetch the page
-    page = confluence.fetch_page(page_id)
+    # Fetch the page with expanded content
+    page = confluence.fetch_page(page_id, expand="body.storage,space,version")
     if not page:
         raise ValueError(f"Failed to fetch Confluence page: {page_id}")
     
@@ -282,9 +282,8 @@ def embed_confluence_page(page_id: str, confluence_config: Dict[str, Any],
             chunk.metadata['version'] = version
     
     # Create embeddings
-    embedding = OllamaEmbeddings(
-        model=TEXT_EMBEDDING_MODEL
-    )
+    provider_config = get_active_embedding_provider()
+    embedding = EmbeddingProviderFactory.get_embeddings(provider_config['type'], provider_config)
     
     # Handle collection creation or update
     if overwrite:

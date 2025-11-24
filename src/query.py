@@ -4,7 +4,6 @@ Processes natural language queries and retrieves relevant documentation.
 """
 import os
 import time
-from langchain_ollama import ChatOllama
 from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
@@ -15,6 +14,8 @@ from .utils import setup_logging
 from .cache import get_cache
 from .monitoring import get_query_monitor
 from .query_history import get_query_history
+from .llm_providers import LLMProviderFactory
+from .settings import get_active_llm_provider
 
 load_dotenv()
 
@@ -115,7 +116,8 @@ def query_docs(question, collection_name=None, version=None, k=3, use_cache=None
     
     # Initialize the language model
     llm_start = time.time()
-    llm = ChatOllama(model=LLM_MODEL, temperature=0)
+    provider_config = get_active_llm_provider()
+    llm = LLMProviderFactory.get_llm(provider_config['type'], provider_config)
     stats['llm_init_time'] = time.time() - llm_start
     
     # Get the vector database instance
@@ -250,7 +252,8 @@ def query_simple(question, collection_name=None, version=None, k=3):
     
     # Initialize the language model
     llm_start = time.time()
-    llm = ChatOllama(model=LLM_MODEL, temperature=0)
+    provider_config = get_active_llm_provider()
+    llm = LLMProviderFactory.get_llm(provider_config['type'], provider_config)
     stats['llm_init_time'] = time.time() - llm_start
     
     # Get the vector database instance
