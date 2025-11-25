@@ -1,0 +1,370 @@
+<div class="max-w-4xl mx-auto space-y-6">
+  <h1 class="text-3xl font-bold text-gray-900 flex items-center gap-3">
+    <svg class="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+    </svg>
+    <span>Upload & Import</span>
+  </h1>
+  
+  <!-- Tab Navigation -->
+  <div class="border-b border-gray-200 mb-6">
+    <nav class="flex space-x-8" aria-label="Tabs">
+      <button
+        type="button"
+        (click)="setActiveTab('upload')"
+        [class.border-primary-600]="activeTab() === 'upload'"
+        [class.text-primary-600]="activeTab() === 'upload'"
+        [class.border-transparent]="activeTab() !== 'upload'"
+        [class.text-gray-500]="activeTab() !== 'upload'"
+        [class.hover:text-gray-700]="activeTab() !== 'upload'"
+        [class.hover:border-gray-300]="activeTab() !== 'upload'"
+        class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+        </svg>
+        <span>Upload Documents</span>
+      </button>
+      <button
+        type="button"
+        (click)="setActiveTab('confluence')"
+        [class.border-primary-600]="activeTab() === 'confluence'"
+        [class.text-primary-600]="activeTab() === 'confluence'"
+        [class.border-transparent]="activeTab() !== 'confluence'"
+        [class.text-gray-500]="activeTab() !== 'confluence'"
+        [class.hover:text-gray-700]="activeTab() !== 'confluence'"
+        [class.hover:border-gray-300]="activeTab() !== 'confluence'"
+        class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>
+        </svg>
+        <span>Confluence Import</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Upload Documents Tab -->
+  @if (activeTab() === 'upload') {
+    <div class="bg-white rounded-lg shadow-md p-6">
+      <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+        <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+        </svg>
+        <span>Upload Documents</span>
+      </h2>
+
+      <form class="space-y-6">
+        <!-- Version Input -->
+        <div>
+          <label for="version" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+            <span>Version (optional)</span>
+            <app-help-icon helpText="Optional version string for collection naming. If provided, documents will be stored in a version-specific collection (e.g., 'docs-v1.2.3')."></app-help-icon>
+          </label>
+          <input
+            type="text"
+            id="version"
+            [(ngModel)]="version"
+            name="version"
+            class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            placeholder="e.g., 1.2.3"
+          />
+        </div>
+
+        <!-- Overwrite Toggle -->
+        <div class="flex items-center">
+          <input
+            type="checkbox"
+            id="overwrite"
+            [(ngModel)]="overwrite"
+            name="overwrite"
+            class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+          />
+          <label for="overwrite" class="ml-2 block text-sm text-gray-900 flex items-center gap-2">
+            <span>Overwrite existing collection</span>
+            <app-help-icon helpText="If enabled, existing documents in the collection will be replaced. If disabled, new documents will be added to the existing collection."></app-help-icon>
+          </label>
+        </div>
+
+        <!-- File Upload Area -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Select Files
+          </label>
+          <div
+            (dragover)="onDragOver($event)"
+            (dragleave)="onDragLeave($event)"
+            (drop)="onDrop($event)"
+            class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary-500 transition-colors"
+          >
+            <input
+              type="file"
+              multiple
+              (change)="onFileSelected($event)"
+              class="hidden"
+              id="file-input"
+              accept=".pdf,.html,.txt,.md"
+            />
+            <label for="file-input" class="cursor-pointer">
+              <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-4h12m-4-4v12m0 0v-4a4 4 0 00-4-4h-4m-12 4a4 4 0 01-4-4V12a4 4 0 014-4h16a4 4 0 014 4v16a4 4 0 01-4 4z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <p class="mt-2 text-sm text-gray-600">
+                <span class="font-medium text-primary-600 hover:text-primary-500">Click to upload</span>
+                or drag and drop
+              </p>
+              <p class="text-xs text-gray-500 mt-1">PDF, HTML, TXT, or Markdown files</p>
+            </label>
+          </div>
+        </div>
+
+        <!-- Selected Files List -->
+        @if (selectedFiles().length > 0) {
+          <div class="space-y-2">
+            <h3 class="text-sm font-medium text-gray-700 flex items-center gap-2">
+              <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              <span>Selected Files:</span>
+            </h3>
+            <ul class="space-y-2">
+              @for (file of selectedFiles(); track $index) {
+                <li class="flex items-center justify-between p-2 bg-gray-50 rounded">
+                  <span class="text-sm text-gray-700 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    {{ file.name }} ({{ (file.size / 1024).toFixed(2) }} KB)
+                  </span>
+                  <button
+                    type="button"
+                    (click)="removeFile($index)"
+                    class="text-red-600 hover:text-red-800 text-sm flex items-center gap-1"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                    <span>Remove</span>
+                  </button>
+                </li>
+              }
+            </ul>
+          </div>
+        }
+
+        <!-- Upload Button -->
+        <button
+          type="button"
+          (click)="uploadFiles()"
+          [disabled]="selectedFiles().length === 0 || uploading()"
+          class="w-full px-6 py-3 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          @if (uploading()) {
+            <span class="flex items-center justify-center">
+              <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Uploading...
+            </span>
+          } @else {
+            <span class="flex items-center justify-center">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+              </svg>
+              Upload Files
+            </span>
+          }
+        </button>
+      </form>
+    </div>
+
+    <!-- Upload Error Message -->
+    @if (uploadError()) {
+      <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span>{{ uploadError() }}</span>
+      </div>
+    }
+
+    <!-- Upload Results -->
+    @if (uploadResults().length > 0) {
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>Upload Results</span>
+          </h2>
+          <button
+            (click)="clearUploadResults()"
+            class="text-sm text-gray-600 hover:text-gray-800 flex items-center gap-1"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+            <span>Clear</span>
+          </button>
+        </div>
+        <div class="space-y-2">
+          @for (result of uploadResults(); track $index) {
+            <div class="p-3 bg-green-50 border border-green-200 rounded flex items-start gap-2">
+              <svg class="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <div class="flex-1">
+                <p class="text-sm text-green-800">
+                  <strong>{{ result.filename }}</strong> - {{ result.message }}
+                </p>
+                @if (result.version) {
+                  <p class="text-xs text-green-600 mt-1">Version: {{ result.version }}</p>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  }
+
+  <!-- Confluence Import Tab -->
+  @if (activeTab() === 'confluence') {
+    <div class="bg-white rounded-lg shadow-md p-6">
+      <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+        <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>
+        </svg>
+        <span>Confluence Import</span>
+      </h2>
+
+      <p class="text-sm text-gray-600 mb-6">
+        Import Confluence pages directly into your vector database. The page will be converted to Markdown format before embedding.
+        Make sure you have configured your Confluence connection settings in the Settings page first.
+      </p>
+
+      <form class="space-y-6" (ngSubmit)="importConfluencePage(); $event.preventDefault()">
+        <!-- Confluence Page ID -->
+        <div>
+          <label for="confluence-page-id" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+            <span>Confluence Page ID or URL *</span>
+            <app-help-icon helpText="Enter a numeric page ID (e.g., '123456') or a full Confluence URL. The system will automatically extract the page ID from URLs. You can find the page ID in the URL of any Confluence page."></app-help-icon>
+          </label>
+          <input
+            type="text"
+            id="confluence-page-id"
+            [(ngModel)]="confluencePageId"
+            name="confluencePageId"
+            required
+            class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            placeholder="e.g., 123456 or https://your-domain.atlassian.net/wiki/spaces/SPACE/pages/123456"
+          />
+        </div>
+
+        <!-- Version Input -->
+        <div>
+          <label for="confluence-version" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+            <span>Version (optional)</span>
+            <app-help-icon helpText="Optional version string for collection naming. If provided, the imported page will be stored in a version-specific collection (e.g., 'docs-v1.2.3')."></app-help-icon>
+          </label>
+          <input
+            type="text"
+            id="confluence-version"
+            [(ngModel)]="confluenceVersion"
+            name="confluenceVersion"
+            class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            placeholder="e.g., 1.2.3"
+          />
+        </div>
+
+        <!-- Overwrite Toggle -->
+        <div class="flex items-center">
+          <input
+            type="checkbox"
+            id="confluence-overwrite"
+            [(ngModel)]="confluenceOverwrite"
+            name="confluenceOverwrite"
+            class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+          />
+          <label for="confluence-overwrite" class="ml-2 block text-sm text-gray-900 flex items-center gap-2">
+            <span>Overwrite existing collection</span>
+            <app-help-icon helpText="If enabled, existing documents in the collection will be replaced. If disabled, new documents will be added to the existing collection."></app-help-icon>
+          </label>
+        </div>
+
+        <!-- Import Button -->
+        <button
+          type="submit"
+          [disabled]="!confluencePageId().trim() || importing()"
+          class="w-full px-6 py-3 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          @if (importing()) {
+            <span class="flex items-center justify-center">
+              <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Importing...
+            </span>
+          } @else {
+            <span class="flex items-center justify-center">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+              </svg>
+              Import Confluence Page
+            </span>
+          }
+        </button>
+      </form>
+    </div>
+
+    <!-- Import Error Message -->
+    @if (importError()) {
+      <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span>{{ importError() }}</span>
+      </div>
+    }
+
+    <!-- Import Result -->
+    @if (importResult()) {
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>Import Result</span>
+          </h2>
+          <button
+            (click)="clearImportResult()"
+            class="text-sm text-gray-600 hover:text-gray-800 flex items-center gap-1"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+            <span>Clear</span>
+          </button>
+        </div>
+        <div class="p-3 bg-green-50 border border-green-200 rounded flex items-start gap-2">
+          <svg class="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <div class="flex-1">
+            <p class="text-sm text-green-800">
+              <strong>{{ importResult()!.filename }}</strong> - {{ importResult()!.message }}
+            </p>
+            @if (importResult()!.version) {
+              <p class="text-xs text-green-600 mt-1">Version: {{ importResult()!.version }}</p>
+            }
+          </div>
+        </div>
+      </div>
+    }
+  }
+</div>
+

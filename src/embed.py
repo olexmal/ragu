@@ -17,7 +17,7 @@ from .utils import detect_document_format, extract_version_from_path, setup_logg
 from .monitoring import get_embedding_monitor
 from .confluence import ConfluenceIntegration
 from .llm_providers import EmbeddingProviderFactory
-from .settings import get_active_embedding_provider
+from .settings import get_active_embedding_provider, get_confluence_settings
 
 load_dotenv()
 
@@ -385,4 +385,230 @@ def embed_confluence_pages(page_ids: list, confluence_config: Dict[str, Any],
     
     logger.info(f"Confluence embedding complete: {results['success']} succeeded, {results['failed']} failed")
     return results
+
+
+def import_confluence_page_to_vector_db(page_id: str, version: str = None, overwrite: bool = False) -> Dict[str, Any]:
+    """
+    Import a Confluence page to vector database using confluence-markdown-exporter.
+    
+    This function:
+    1. Loads Confluence settings from settings storage
+    2. Uses confluence-markdown-exporter to download the page as Markdown
+    3. Saves Markdown to a temporary file
+    4. Calls embed_file() to embed the Markdown content
+    5. Cleans up the temporary file
+    
+    Args:
+        page_id: Confluence page ID or URL (URLs will have page ID extracted)
+        version: Optional version string for collection naming
+        overwrite: If True, delete existing collection before embedding
+        
+    Returns:
+        dict: Result dictionary with success status, message, and filename
+    """
+    import tempfile
+    import subprocess
+    import shutil
+    
+    # Validate page_id is a string
+    if not isinstance(page_id, str):
+        page_id = str(page_id)
+    
+    # Extract page ID from URL if needed
+    if page_id.startswith('http'):
+        # Extract page ID from Confluence URL
+        # Format: https://domain.atlassian.net/wiki/spaces/SPACE/pages/PAGE_ID/...
+        import re
+        match = re.search(r'/pages/(\d+)', page_id)
+        if match:
+            page_id = match.group(1)
+        else:
+            raise ValueError(f"Could not extract page ID from URL: {page_id}")
+    
+    # Load Confluence settings
+    settings = get_confluence_settings()
+    if not settings.get('url'):
+        raise ValueError("Confluence not configured. Please configure in Settings first.")
+    
+    # Initialize confluence-markdown-exporter
+    # confluence-markdown-exporter typically requires:
+    # - base_url: Confluence instance URL
+    # - username: Username or email
+    # - api_token: API token for authentication
+    
+    confluence_url = settings['url'].rstrip('/')
+    
+    # Extract username: use configured username, or extract from API token if it contains a colon (format: username:token)
+    raw_api_token = settings.get('api_token', '')
+    # Only extract username from token if token contains a colon and username wasn't explicitly set
+    if ':' in raw_api_token and not settings.get('username'):
+        username_from_token = raw_api_token.split(':', 1)[0]
+    else:
+        username_from_token = ''
+    username = settings.get('username') or username_from_token
+    
+    # Extract API token - if we extracted username from api_token (meaning username wasn't explicitly set),
+    # then extract just the token part (everything after the first colon)
+    # Otherwise use the full api_token or fall back to password
+    if ':' in raw_api_token and not settings.get('username'):
+        # If api_token is in username:token format and username wasn't explicitly set,
+        # extract just the token part (everything after the first colon)
+        api_token = raw_api_token.split(':', 1)[1]
+    else:
+        # Use the full api_token or fall back to password
+        api_token = raw_api_token or settings.get('password', '')
+    
+    if not api_token:
+        raise ValueError("Confluence API token or password is required. Please configure in Settings.")
+    
+    # Create temporary file for Markdown
+    temp_file = None
+    temp_fd = None
+    try:
+        # Create temporary file
+        temp_fd, temp_path = tempfile.mkstemp(suffix='.md', prefix='confluence_', text=True)
+        temp_file = Path(temp_path)
+        
+        # Close the file descriptor immediately since we'll use the path, not the descriptor
+        # mkstemp() opens the file, but we need to close it so other processes can write to it
+        os.close(temp_fd)
+        temp_fd = None  # Mark as closed to avoid closing again in finally
+        
+        logger.info(f"Exporting Confluence page {page_id} to Markdown...")
+        
+        # Check if confluence-markdown-exporter CLI is available
+        # Try multiple possible command formats
+        exporter_cmd = None
+        possible_commands = [
+            'confluence-markdown-exporter',
+            'confluence_markdown_exporter',
+            ['python', '-m', 'confluence_markdown_exporter'],
+            ['python3', '-m', 'confluence_markdown_exporter'],
+        ]
+        
+        for cmd_name in possible_commands:
+            if isinstance(cmd_name, list):
+                # Try Python module execution
+                try:
+                    result = subprocess.run(
+                        cmd_name + ['--help'],
+                        capture_output=True,
+                        text=True,
+                        timeout=5,
+                        check=False
+                    )
+                    stdout_lower = (result.stdout or '').lower()
+                    stderr_lower = (result.stderr or '').lower()
+                    if result.returncode == 0 or 'usage' in stdout_lower or 'usage' in stderr_lower:
+                        exporter_cmd = cmd_name
+                        break
+                except (subprocess.TimeoutExpired, FileNotFoundError):
+                    continue
+            else:
+                # Try direct command
+                found_cmd = shutil.which(cmd_name)
+                if found_cmd:
+                    exporter_cmd = [found_cmd]
+                    break
+        
+        if not exporter_cmd:
+            raise ValueError("confluence-markdown-exporter CLI tool not found. Please ensure it is installed: pip install confluence-markdown-exporter==1.0.4")
+        
+        # Build command arguments for confluence-markdown-exporter CLI
+        # Try different possible CLI argument formats
+        cmd_variants = [
+            # Format 1: --url --username --token page_id output
+            exporter_cmd + [
+                '--url', confluence_url,
+                '--username', username,
+                '--token', api_token,
+                page_id,
+                str(temp_file)
+            ],
+            # Format 2: --base-url --user --api-token page_id output
+            exporter_cmd + [
+                '--base-url', confluence_url,
+                '--user', username,
+                '--api-token', api_token,
+                page_id,
+                str(temp_file)
+            ],
+            # Format 3: url username token page_id output (positional)
+            exporter_cmd + [
+                confluence_url,
+                username,
+                api_token,
+                page_id,
+                str(temp_file)
+            ],
+        ]
+        
+        # Try each command format until one succeeds
+        last_error = None
+        for cmd in cmd_variants:
+            try:
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=300,  # 5 minute timeout
+                    check=True
+                )
+                logger.debug(f"confluence-markdown-exporter output: {result.stdout}")
+                break  # Success, exit the loop
+            except subprocess.TimeoutExpired as e:
+                error_msg = f"Timeout while exporting Confluence page {page_id}. The operation took longer than 5 minutes."
+                last_error = error_msg
+                logger.debug(f"Command format timed out: {cmd}, error: {error_msg}")
+                continue  # Try next format
+            except subprocess.CalledProcessError as e:
+                error_msg = e.stderr or e.stdout or "Unknown error"
+                last_error = error_msg
+                logger.debug(f"Command format failed: {cmd}, error: {error_msg}")
+                continue  # Try next format
+        else:
+            # All formats failed
+            raise ValueError(f"Failed to export Confluence page {page_id} using confluence-markdown-exporter. Last error: {last_error}")
+        
+        if not temp_file.exists() or temp_file.stat().st_size == 0:
+            raise ValueError(f"Failed to export Confluence page {page_id} to Markdown - output file is empty or missing")
+        
+        logger.info(f"Successfully exported page {page_id} to {temp_file}")
+        
+        # Embed the Markdown file
+        embed_file(
+            str(temp_file),
+            collection_name=None,
+            version=version,
+            overwrite=overwrite
+        )
+        
+        # Get filename for response (use page ID as base name)
+        filename = f"confluence-page-{page_id}.md"
+        
+        return {
+            "message": f"Confluence page {page_id} imported successfully",
+            "filename": filename,
+            "version": version,
+            "mode": "overwrite" if overwrite else "incremental"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error importing Confluence page {page_id}: {e}")
+        raise
+    finally:
+        # Close file descriptor if still open
+        if temp_fd is not None:
+            try:
+                os.close(temp_fd)
+            except Exception as e:
+                logger.warning(f"Failed to close temporary file descriptor: {e}")
+        
+        # Clean up temporary file
+        if temp_file and temp_file.exists():
+            try:
+                temp_file.unlink()
+                logger.info(f"Cleaned up temporary file: {temp_file}")
+            except Exception as e:
+                logger.warning(f"Failed to clean up temporary file {temp_file}: {e}")
 

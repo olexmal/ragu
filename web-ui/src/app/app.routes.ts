@@ -24,8 +24,8 @@ export const routes: Routes = [
             loadComponent: () => import('./features/admin/dashboard/dashboard.component').then(m => m.DashboardComponent)
           },
           { 
-            path: 'upload', 
-            loadComponent: () => import('./features/admin/upload/upload.component').then(m => m.UploadComponent)
+            path: 'import', 
+            loadComponent: () => import('./features/admin/import/import.component').then(m => m.ImportComponent)
           },
           { 
             path: 'collections', 

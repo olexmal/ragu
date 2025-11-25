@@ -7,11 +7,12 @@ import { CollectionService } from '../../core/services/collection.service';
 import { QueryState } from '../../core/state/query.state';
 import { QueryRequest } from '../../core/models/query.models';
 import { QueryResultsComponent } from './components/query-results/query-results.component';
+import { HelpIconComponent } from '../../shared/components/help-icon/help-icon.component';
 
 @Component({
   selector: 'app-query',
   standalone: true,
-  imports: [CommonModule, FormsModule, QueryResultsComponent],
+  imports: [CommonModule, FormsModule, QueryResultsComponent, HelpIconComponent],
   templateUrl: './query.component.html',
   styleUrl: './query.component.scss'
 })

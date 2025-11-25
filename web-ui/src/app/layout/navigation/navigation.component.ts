@@ -25,7 +25,7 @@ export class NavigationComponent {
 
   adminMenuItems = [
     { path: '/admin', label: 'Dashboard', icon: 'dashboard' },
-    { path: '/admin/upload', label: 'Upload Documents', icon: 'upload' },
+    { path: '/admin/import', label: 'Upload & Import', icon: 'upload' },
     { path: '/admin/collections', label: 'Collections', icon: 'folder' },
     { path: '/admin/monitoring', label: 'Monitoring', icon: 'chart' },
     { path: '/admin/settings', label: 'Settings', icon: 'settings' },

@@ -29,5 +29,17 @@ export class EmbedService extends ApiService {
 
     return this.postFormData<BatchEmbedResponse>('/embed-batch', formData);
   }
+
+  importConfluencePage(pageId: string, version?: string, overwrite: boolean = false): Observable<EmbedResponse> {
+    const body: any = {
+      page_id: pageId
+    };
+    if (version) {
+      body.version = version;
+    }
+    body.overwrite = overwrite;
+
+    return this.post<EmbedResponse>('/confluence/import', body);
+  }
 }
 

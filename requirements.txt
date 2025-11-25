@@ -19,3 +19,4 @@ pytest-cov>=4.1.0
 unstructured>=0.12.0
 pygments>=2.17.2
 atlassian-python-api>=3.41.0
+confluence-markdown-exporter==1.0.4

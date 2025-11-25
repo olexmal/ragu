@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 
 # Handle imports for both module and standalone execution
 if __name__ == '__main__':
-    from embed import embed_file, embed_directory, embed_confluence_page, embed_confluence_pages
+    from embed import embed_file, embed_directory, embed_confluence_page, embed_confluence_pages, import_confluence_page_to_vector_db
     from query import query_docs, query_simple
     from utils import setup_logging
     from settings import get_confluence_settings, save_confluence_settings, get_system_settings, save_system_settings, get_llm_providers, save_llm_providers, get_active_llm_provider, get_active_embedding_provider
@@ -25,7 +25,7 @@ if __name__ == '__main__':
     requires_auth = lambda f: f  # No-op decorator
     requires_write_auth = lambda f: f
 else:
-    from .embed import embed_file, embed_directory, embed_confluence_page, embed_confluence_pages
+    from .embed import embed_file, embed_directory, embed_confluence_page, embed_confluence_pages, import_confluence_page_to_vector_db
     from .query import query_docs, query_simple
     from .multi_version_query import query_multiple_versions, compare_versions
     from .query_history import get_query_history
@@ -1130,6 +1130,47 @@ def fetch_confluence_pages():
     except Exception as e:
         logger.error(f"Failed to fetch Confluence pages: {e}")
         return jsonify({"error": f"Failed to fetch pages: {str(e)}"}), 500
+
+
+@app.route('/confluence/import', methods=['POST'])
+@requires_write_auth
+def import_confluence_page():
+    """Import a single Confluence page to vector database using confluence-markdown-exporter."""
+    if not request.is_json:
+        return jsonify({"error": "Content-Type must be application/json"}), 400
+    
+    data = request.json
+    if data is None:
+        return jsonify({"error": "Invalid or missing JSON body"}), 400
+    
+    try:
+        page_id = data.get('page_id')
+        # Validate page_id is a string and not empty
+        if not isinstance(page_id, str) or not page_id:
+            return jsonify({"error": "page_id is required and must be a string"}), 400
+        
+        version = data.get('version')
+        # Convert overwrite to boolean, handling string values "true"/"false" and boolean values
+        overwrite_value = data.get('overwrite', False)
+        if isinstance(overwrite_value, str):
+            overwrite = overwrite_value.lower() in ('true', '1', 'yes', 'on')
+        else:
+            overwrite = bool(overwrite_value)
+        
+        # Import the page
+        result = import_confluence_page_to_vector_db(
+            page_id=page_id,
+            version=version,
+            overwrite=overwrite
+        )
+        
+        return jsonify(result), 200
+    except ValueError as e:
+        logger.error(f"Validation error importing Confluence page: {e}")
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logger.error(f"Failed to import Confluence page: {e}")
+        return jsonify({"error": f"Failed to import page: {str(e)}"}), 500
 
 
 if __name__ == '__main__':

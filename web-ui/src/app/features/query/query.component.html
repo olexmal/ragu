@@ -1,5 +1,10 @@
 <div class="max-w-4xl mx-auto">
-  <h1 class="text-3xl font-bold text-gray-900 mb-6">Query Documentation</h1>
+  <h1 class="text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+    <svg class="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+    </svg>
+    <span>Query Documentation</span>
+  </h1>
 
   <!-- Loading Indicator -->
   @if (queryState.loading()) {
@@ -17,8 +22,9 @@
     <form (ngSubmit)="onSubmit()" [class.opacity-50]="queryState.loading()" class="space-y-4">
       <!-- Query Input -->
       <div>
-        <label for="query" class="block text-sm font-medium text-gray-700 mb-2">
-          Enter your question
+        <label for="query" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+          <span>Enter your question</span>
+          <app-help-icon helpText="Enter your question about the documentation. The system will search through embedded documents to find relevant information and provide an answer."></app-help-icon>
         </label>
         <textarea
           id="query"
@@ -35,8 +41,9 @@
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <!-- Version Selector -->
         <div>
-          <label for="version" class="block text-sm font-medium text-gray-700 mb-2">
-            Version (optional)
+          <label for="version" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+            <span>Version (optional)</span>
+            <app-help-icon helpText="Select a specific version to query. If not selected, the system will search across all versions."></app-help-icon>
           </label>
           <select
             id="version"
@@ -53,8 +60,9 @@
 
         <!-- K Value -->
         <div>
-          <label for="k" class="block text-sm font-medium text-gray-700 mb-2">
-            Documents to retrieve
+          <label for="k" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+            <span>Documents to retrieve</span>
+            <app-help-icon helpText="Number of relevant document chunks to retrieve and use for answering your query. Higher values may provide more context but take longer to process. Range: 1-10."></app-help-icon>
           </label>
           <input
             type="number"
@@ -76,7 +84,10 @@
               name="simple"
               class="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
             />
-            <span class="text-sm text-gray-700">Simple query (faster)</span>
+            <span class="text-sm text-gray-700 flex items-center gap-2">
+              <span>Simple query (faster)</span>
+              <app-help-icon helpText="Use a simpler, faster query method. This may provide quicker results but with potentially less detailed answers compared to the standard query method."></app-help-icon>
+            </span>
           </label>
         </div>
       </div>
@@ -124,8 +135,11 @@
 
   <!-- Error Message -->
   @if (queryState.error()) {
-    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-      {{ queryState.error() }}
+    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 flex items-center gap-2">
+      <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+      </svg>
+      <span>{{ queryState.error() }}</span>
     </div>
   }
 

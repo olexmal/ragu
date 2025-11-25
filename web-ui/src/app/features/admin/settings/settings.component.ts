@@ -37,14 +37,12 @@ export class SettingsComponent implements OnInit {
 
   loading = signal<boolean>(false);
   testLoading = signal<boolean>(false);
-  fetchLoading = signal<boolean>(false);
   systemLoading = signal<boolean>(false);
   error = signal<string>('');
   success = signal<string>('');
   systemError = signal<string>('');
   systemSuccess = signal<string>('');
   testResult = signal<{success: boolean, message: string} | null>(null);
-  newPageId = signal<string>('');
 
   // LLM Provider settings
   llmProviders = signal<LLMProvidersSettings>({
@@ -59,6 +57,18 @@ export class SettingsComponent implements OnInit {
   llmTestSuccess = signal<{ [key: string]: string }>({});
   newProviderType = signal<LLMProviderType | ''>('');
   availableProviderTypes: LLMProviderType[] = ['ollama', 'openrouter', 'openai', 'anthropic', 'azure-openai', 'google'];
+
+  // Tab management
+  activeTab = signal<string>('system');
+  tabs = [
+    { id: 'system', label: 'System Settings', icon: 'settings' },
+    { id: 'confluence', label: 'Confluence Integration', icon: 'cloud' },
+    { id: 'llm-providers', label: 'LLM & Embedding Providers', icon: 'sparkles' }
+  ];
+
+  setActiveTab(tabId: string): void {
+    this.activeTab.set(tabId);
+  }
 
   ngOnInit(): void {
     // Clear any previous messages on component initialization
@@ -201,58 +211,6 @@ export class SettingsComponent implements OnInit {
           this.error.set(errorMessage);
         }
       });
-  }
-
-  fetchPages(): void {
-    const settings = this.confluenceSettings();
-    if (!settings.pageIds || settings.pageIds.length === 0) {
-      this.error.set('At least one page ID is required');
-      return;
-    }
-
-    this.fetchLoading.set(true);
-    this.error.set('');
-    this.success.set('');
-
-    this.settingsService.fetchConfluencePages({
-      pageIds: settings.pageIds,
-      confluenceConfig: settings
-    }).subscribe({
-      next: (response: ConfluenceFetchResponse) => {
-        this.success.set(`${response.message}. Success: ${response.results.success}, Failed: ${response.results.failed}`);
-        this.fetchLoading.set(false);
-      },
-      error: (err: any) => {
-        this.error.set(err.message || 'Failed to fetch pages');
-        this.fetchLoading.set(false);
-      }
-    });
-  }
-
-  addPageId(): void {
-    const pageId = this.newPageId().trim();
-    if (!pageId) {
-      return;
-    }
-
-    const settings = this.confluenceSettings();
-    if (!settings.pageIds.includes(pageId)) {
-      this.confluenceSettings.set({
-        ...settings,
-        pageIds: [...settings.pageIds, pageId]
-      });
-      this.newPageId.set('');
-    }
-  }
-
-  removePageId(index: number): void {
-    const settings = this.confluenceSettings();
-    const newPageIds = [...settings.pageIds];
-    newPageIds.splice(index, 1);
-    this.confluenceSettings.set({
-      ...settings,
-      pageIds: newPageIds
-    });
   }
 
   clearMessages(): void {
