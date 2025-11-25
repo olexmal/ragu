@@ -1,61 +1,155 @@
-# RAG System for Common Model Documentation
+# 🚀 RAG System
 
-A local Retrieval-Augmented Generation (RAG) application that provides semantic search and context-aware responses for common model documentation using Ollama, Python, and ChromaDB.
+<div align="center">
 
-> **Quick Start**: See [QUICKSTART.md](QUICKSTART.md) for a 5-minute setup guide.
+**A modern, local Retrieval-Augmented Generation (RAG) application with a beautiful web interface**
+
+[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
+[![Angular](https://img.shields.io/badge/Angular-19+-red.svg)](https://angular.io/)
+[![Ollama](https://img.shields.io/badge/Ollama-Required-orange.svg)](https://ollama.ai/)
+[![License](https://img.shields.io/badge/License-See%20LICENSE-green.svg)](LICENSE)
+
+[Quick Start](#-quick-start) • [Features](#-features) • [Documentation](#-documentation) • [API Reference](docs/API_REFERENCE.md)
+
+</div>
+
+---
+
+## ✨ Overview
+
+RAG System is a powerful, privacy-focused documentation search and query platform that enables semantic search across your documentation using local AI models. With a modern Angular web interface, you can upload documents, import from Confluence, query your knowledge base, and manage collections—all while keeping your data completely local.
+
+### 🎯 Key Highlights
+
+- 🌐 **Modern Web UI** - Beautiful, intuitive interface built with Angular
+- 📄 **Document Upload** - Support for PDF, HTML, TXT, Markdown, and more
+- 🔗 **Confluence Integration** - Import pages directly from Confluence
+- 🔍 **Semantic Search** - Natural language queries with context-aware responses
+- 📊 **Version Management** - Track and query multiple documentation versions
+- 🔒 **Privacy First** - All processing happens locally on your machine
+- ⚡ **Fast & Efficient** - Query caching and optimized retrieval
+
+---
 
 ## 🎯 Features
 
-- **Semantic Search**: Natural language queries with semantic understanding
-- **Incremental Updates**: Append documents to existing collections without overwriting
-- **Version-Aware**: Support for version-specific documentation collections
-- **Multi-Version Querying**: Query across multiple versions simultaneously
-- **Query History & Favorites**: Track and favorite frequently asked questions
-- **Query Caching**: Fast responses for frequently asked questions
-- **Monitoring & Analytics**: Track query patterns and system performance
-- **Local Processing**: All processing happens locally for privacy and security
-- **RESTful API**: Easy integration via Flask API
-- **CLI Tools**: Command-line interface for embedding and querying
-- **Webhook Support**: Automatic updates via webhook notifications
+### Core Capabilities
+
+- **📤 Document Upload & Import**
+  - Upload multiple file formats (PDF, HTML, TXT, Markdown)
+  - Import Confluence pages via page ID or URL
+  - Batch processing for multiple files
+  - Incremental updates without data loss
+
+- **🔍 Intelligent Querying**
+  - Natural language question answering
+  - Multi-version querying across documentation versions
+  - Version comparison for tracking changes
+  - Query history and favorites management
+  - Source citations with document references
+
+- **📊 Management & Monitoring**
+  - Collection management with version tracking
+  - Query analytics and statistics
+  - Performance monitoring
+  - Export query history (JSON/CSV)
+
+- **⚙️ Configuration & Integration**
+  - Multiple LLM provider support (Ollama, OpenAI, Anthropic, Azure, Google, OpenRouter)
+  - Configurable embedding providers
+  - Confluence integration settings
+  - System settings management
+  - Optional API authentication
+
+### Web Interface Features
+
+- **🎨 Modern UI/UX**
+  - Clean, responsive design
+  - Intuitive navigation
+  - Real-time feedback
+  - Helpful tooltips and icons
+  - Error handling with clear messages
+
+- **📱 Pages**
+  - **Query** - Ask questions about your documentation
+  - **History** - View and rerun previous queries
+  - **Dashboard** - System overview and quick actions
+  - **Upload & Import** - Document upload and Confluence import
+  - **Collections** - Manage your document collections
+  - **Monitoring** - System statistics and analytics
+  - **Settings** - Configure LLM providers, Confluence, and system settings
+
+---
 
 ## 📋 Prerequisites
 
-- Python 3.8+
-- [Ollama](https://ollama.ai/) installed and running
-- Minimum 8GB RAM (16GB+ recommended)
-- 10GB+ free disk space for models and vector database
+Before you begin, ensure you have:
+
+- **Python 3.8+** installed
+- **Node.js 18+** and **npm** (for web UI)
+- **[Ollama](https://ollama.ai/)** installed and running
+- **Minimum 8GB RAM** (16GB+ recommended)
+- **10GB+ free disk space** for models and vector database
+
+---
 
 ## 🚀 Quick Start
 
 ### 1. Install Ollama
 
 ```bash
+# Install Ollama
 curl -fsSL https://ollama.ai/install.sh | sh
+
+# Verify installation
+ollama --version
 ```
 
 ### 2. Download Required Models
 
 ```bash
-ollama pull mistral          # LLM for generation (~4GB)
-ollama pull nomic-embed-text # Embedding model (lightweight)
+# Download LLM for generation (~4GB)
+ollama pull mistral
+
+# Download embedding model (lightweight)
+ollama pull nomic-embed-text
+
+# Verify models
+ollama list
 ```
 
-### 3. Set Up Python Environment
+### 3. Set Up Backend
 
 ```bash
-# Clone or navigate to the project directory
+# Navigate to project directory
 cd ragu
 
 # Create virtual environment
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
+# Install Python dependencies
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 4. Configure Environment
+### 4. Set Up Web UI
+
+```bash
+# Navigate to web UI directory
+cd web-ui
+
+# Install Node.js dependencies
+npm install
+
+# Build the application
+npm run build
+
+# Or run in development mode
+npm start
+```
+
+### 5. Configure Environment
 
 ```bash
 # Copy example environment file
@@ -64,21 +158,43 @@ cp .env.example .env
 # Edit .env with your configuration (optional - defaults work for most cases)
 ```
 
-### 5. Start the RAG Server
+### 6. Start the System
 
+**Option A: Start Backend Only (API)**
 ```bash
-# Using the helper script
+# Using helper script
 ./scripts/start-rag-server.sh
 
 # Or manually
 python3 -c "from src.app import app; app.run(host='localhost', port=8080)"
 ```
 
-The API will be available at `http://localhost:8080`
+**Option B: Start with Web UI**
+```bash
+# Terminal 1: Start backend API
+./scripts/start-rag-server.sh
+
+# Terminal 2: Start web UI (development)
+cd web-ui
+npm start
+```
+
+The API will be available at `http://localhost:8080`  
+The web UI will be available at `http://localhost:4200` (development) or served from the backend (production)
+
+---
 
 ## 📖 Usage
 
-### API Endpoints
+### Web Interface
+
+1. **Access the Web UI**: Open `http://localhost:4200` in your browser
+2. **Upload Documents**: Navigate to "Upload & Import" → "Upload Documents" tab
+3. **Import from Confluence**: Use "Confluence Import" tab (configure Confluence settings first)
+4. **Query Documentation**: Go to "Query" page and ask questions
+5. **Manage Collections**: View and manage collections in "Collections" page
+
+### API Usage
 
 #### Health Check
 ```bash
@@ -92,96 +208,93 @@ curl -X POST http://localhost:8080/embed \
   -F "version=1.2.3"
 ```
 
+#### Import from Confluence
+```bash
+curl -X POST http://localhost:8080/confluence/import \
+  -H "Content-Type: application/json" \
+  -d '{
+    "page_id": "123456",
+    "version": "1.2.3",
+    "overwrite": false
+  }'
+```
+
 #### Query Documentation
 ```bash
 curl -X POST http://localhost:8080/query \
   -H "Content-Type: application/json" \
-  -d '{"query": "How do I use the UserService class?"}'
-```
-
-#### List Collections
-```bash
-curl http://localhost:8080/collections
+  -d '{
+    "query": "How do I use the UserService class?",
+    "version": "1.2.3",
+    "k": 3
+  }'
 ```
 
 ### CLI Usage
 
-#### Embed a File
 ```bash
+# Embed a file
 python3 src/cli.py embed path/to/documentation.pdf --version 1.2.3
-```
 
-#### Query Documentation
-```bash
+# Query documentation
 python3 src/cli.py query "How does UserService work?" --version 1.2.3
-```
 
-#### List Collections
-```bash
+# List collections
 python3 src/cli.py list-collections
-```
 
-#### Check System Status
-```bash
+# Check system status
 python3 src/cli.py status
 ```
 
-### Maven Integration
-
-#### Automatic Documentation Update
-
-To automatically check for version changes and update embedded documentation:
-
-```bash
-./scripts/update-docs.sh
-```
-
-This script will:
-1. Check current common model version from Maven
-2. Compare with last embedded version
-3. Automatically embed new documentation if version changed
-4. Update version tracking file
-
-#### Manual Documentation Embedding
-
-To manually embed Javadoc from your common model:
-
-```bash
-./scripts/embed-commonmodel-docs.sh
-```
-
-This script will:
-1. Resolve the current common model version from Maven
-2. Generate Javadoc if needed
-3. Embed documentation into ChromaDB with version tagging
+---
 
 ## 🏗️ Project Structure
 
 ```
 ragu/
-├── src/
-│   ├── __init__.py
-│   ├── app.py              # Flask API server
-│   ├── cli.py              # Command-line interface
-│   ├── embed.py            # Document embedding logic
-│   ├── query.py            # Query processing
-│   ├── get_vector_db.py    # Vector database management
-│   └── utils.py            # Utility functions
-├── scripts/
-│   ├── embed-commonmodel-docs.sh  # Maven integration script
-│   └── start-rag-server.sh        # Server startup script
-├── docs/                   # Documentation storage
-├── tests/                  # Test files
-├── _temp/                  # Temporary file storage
-├── chroma/                 # ChromaDB persistence
-├── requirements.txt        # Python dependencies
-├── .env.example           # Environment configuration example
-└── README.md              # This file
+├── src/                          # Backend Python code
+│   ├── app.py                   # Flask API server
+│   ├── cli.py                   # Command-line interface
+│   ├── embed.py                 # Document embedding logic
+│   ├── query.py                 # Query processing
+│   ├── get_vector_db.py         # Vector database management
+│   ├── settings.py              # Settings management
+│   ├── llm_providers.py         # LLM provider abstraction
+│   ├── confluence.py            # Confluence integration
+│   └── ...
+├── web-ui/                      # Frontend Angular application
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── features/        # Feature modules
+│   │   │   │   ├── admin/       # Admin features (dashboard, upload, collections, etc.)
+│   │   │   │   ├── query/       # Query interface
+│   │   │   │   └── auth/        # Authentication
+│   │   │   ├── core/            # Core services and state
+│   │   │   ├── layout/          # Layout components
+│   │   │   └── shared/          # Shared components
+│   │   └── ...
+│   └── ...
+├── scripts/                     # Utility scripts
+│   ├── start-rag-server.sh      # Server startup
+│   ├── embed-commonmodel-docs.sh # Maven integration
+│   └── ...
+├── docs/                        # Documentation
+│   ├── API_REFERENCE.md         # Complete API documentation
+│   └── DEVELOPER_GUIDE.md      # Developer guide
+├── tests/                       # Test files
+├── chroma/                      # ChromaDB persistence
+├── requirements.txt             # Python dependencies
+├── .env.example                 # Environment configuration example
+└── README.md                    # This file
 ```
+
+---
 
 ## 🔧 Configuration
 
-Environment variables (in `.env`):
+### Environment Variables
+
+Key configuration options in `.env`:
 
 ```bash
 # Vector Database
@@ -197,199 +310,78 @@ API_PORT=8080
 API_HOST=localhost
 FLASK_DEBUG=False
 
-# Maven Integration
-MAVEN_POM_PATH=../pom.xml
-COMMON_MODEL_VERSION_PROPERTY=commonmodel.version
-
 # Authentication (Optional)
 AUTH_ENABLED=false
 AUTH_REQUIRED_FOR=write  # Options: 'all', 'write', 'none'
-API_KEY=  # Generate with: ./scripts/generate-api-key.sh
+API_KEY=
 API_KEY_HEADER=X-API-Key
+
+# Session Security
+SECRET_KEY=your-secret-key-here
+SESSION_SECURE=false  # Set to true for HTTPS
 ```
 
-### Enabling Authentication
+### Web UI Configuration
 
-To enable API authentication:
+The web UI connects to the backend API. Configure the API URL in `web-ui/src/environments/environment.ts`:
 
-1. Generate an API key:
+```typescript
+export const environment = {
+  apiUrl: 'http://localhost:8080'
+};
+```
+
+### Confluence Integration
+
+Configure Confluence settings via the web UI (Settings → Confluence Integration) or via API:
+
 ```bash
-./scripts/generate-api-key.sh
+curl -X POST http://localhost:8080/settings/confluence \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://your-domain.atlassian.net",
+    "username": "your-email@example.com",
+    "api_token": "your-api-token"
+  }'
 ```
 
-2. Add to `.env`:
-```bash
-AUTH_ENABLED=true
-AUTH_REQUIRED_FOR=write  # or 'all' for all endpoints
-API_KEY=your-generated-key-here
-```
-
-3. Use the API key in requests:
-```bash
-curl -X POST http://localhost:8080/embed \
-  -H "X-API-Key: your-generated-key-here" \
-  -F "file=@documentation.pdf"
-```
-
-**Authentication Modes:**
-- `AUTH_REQUIRED_FOR=all`: All endpoints require authentication
-- `AUTH_REQUIRED_FOR=write`: Only write operations (POST, PUT, DELETE) require authentication
-- `AUTH_REQUIRED_FOR=none` or `AUTH_ENABLED=false`: No authentication required
+---
 
 ## 🔒 Security Features
 
-- **Path Traversal Protection**: File paths are sanitized and validated
-- **Input Validation**: All API inputs are validated
-- **Error Handling**: Comprehensive error handling with appropriate HTTP status codes
-- **Local Processing**: All data stays on your machine
-- **API Authentication** (Optional): API key-based authentication for production use
-- **Write Protection**: Configurable authentication for write operations only
+- **Path Traversal Protection** - File paths are sanitized and validated
+- **Input Validation** - All API inputs are validated before processing
+- **Error Handling** - Comprehensive error handling with appropriate HTTP status codes
+- **Local Processing** - All data stays on your machine
+- **API Authentication** (Optional) - API key-based authentication for production use
+- **Write Protection** - Configurable authentication for write operations only
+- **Session Security** - Secure session management for web UI
 
-## 📚 API Documentation
+---
 
-### POST /embed
-Embed a single file into the vector database.
+## 📚 Documentation
 
-**Parameters:**
-- `file` (multipart/form-data): File to embed
-- `version` (optional): Version string for collection naming
-- `overwrite` (optional): Set to "true" to replace existing collection
+### Quick Links
 
-### POST /query
-Query the documentation using natural language.
+- **[Quick Start Guide](QUICKSTART.md)** - Get up and running in 5 minutes
+- **[API Reference](docs/API_REFERENCE.md)** - Complete API endpoint documentation
+- **[Developer Guide](docs/DEVELOPER_GUIDE.md)** - Architecture and extension guide
+- **[Changelog](CHANGELOG.md)** - Version history and changes
 
-**Request Body:**
-```json
-{
-  "query": "Your question here",
-  "version": "1.2.3",
-  "k": 3,
-  "simple": false
-}
-```
+### Key Endpoints
 
-### GET /collections
-List all available collections.
+- `POST /embed` - Embed a single file
+- `POST /embed-batch` - Embed multiple files
+- `POST /confluence/import` - Import Confluence page
+- `POST /query` - Query documentation
+- `POST /query/multi-version` - Query across multiple versions
+- `GET /collections` - List all collections
+- `GET /stats` - System statistics
+- `GET /history` - Query history
 
-### GET /collections/<version>
-Get information about a specific versioned collection.
+For complete API documentation, see [API_REFERENCE.md](docs/API_REFERENCE.md).
 
-### DELETE /collections/<version>
-Delete a specific versioned collection.
-
-### POST /query/multi-version
-Query documentation across multiple versions simultaneously.
-
-**Request Body:**
-```json
-{
-  "query": "How does UserService work?",
-  "versions": ["1.2.3", "1.3.0"],
-  "k": 3
-}
-```
-
-### POST /query/compare
-Compare answers across different versions.
-
-**Request Body:**
-```json
-{
-  "query": "How do I create a user?",
-  "versions": ["1.2.3", "1.3.0", "2.0.0"],
-  "k": 3
-}
-```
-
-### GET /history
-Get query history.
-
-**Query Parameters:**
-- `limit` (optional): Number of entries (default: 50)
-- `offset` (optional): Pagination offset (default: 0)
-
-### GET /history/search?q=<term>
-Search query history.
-
-**Query Parameters:**
-- `q`: Search term (required)
-- `limit` (optional): Maximum results (default: 20)
-
-### GET /history/export?format=json|csv
-Export query history.
-
-**Query Parameters:**
-- `format`: Export format - 'json' or 'csv' (default: 'json')
-
-### GET /favorites
-Get list of favorite queries.
-
-### POST /favorites
-Add a query to favorites.
-
-**Request Body:**
-```json
-{
-  "query": "How does UserService work?"
-}
-```
-
-### DELETE /favorites
-Remove a query from favorites.
-
-**Request Body:**
-```json
-{
-  "query": "How does UserService work?"
-}
-```
-
-### GET /stats
-Get system statistics including query metrics, embedding stats, and cache statistics.
-
-**Query Parameters:**
-- `days` (optional): Number of days to analyze (default: 7)
-
-### POST /extract-code
-Extract code examples from text or documentation.
-
-**Request Body:**
-```json
-{
-  "text": "Documentation text with code examples...",
-  "language": "java"
-}
-```
-
-**Response:**
-```json
-{
-  "total_blocks": 3,
-  "languages": ["java", "text"],
-  "blocks": [
-    {
-      "code": "public class UserService {...}",
-      "language": "java",
-      "type": "class",
-      "length": 150,
-      "highlighted": "..."
-    }
-  ]
-}
-```
-
-### GET /auth/status
-Get authentication configuration status.
-
-**Response:**
-```json
-{
-  "enabled": true,
-  "required_for": "write",
-  "api_key_configured": true,
-  "header_name": "X-API-Key"
-}
-```
+---
 
 ## 🧪 Testing
 
@@ -409,31 +401,86 @@ pytest tests/ --cov=src          # With coverage report
 
 Test coverage report is generated in `htmlcov/index.html` after running tests with coverage.
 
+---
+
 ## 🐛 Troubleshooting
 
-### Ollama not found
+### Common Issues
+
+**Ollama not found**
 - Ensure Ollama is installed and in your PATH
 - Check that `ollama serve` is running
+- Verify with `ollama list`
 
-### Models not available
+**Models not available**
 - Run `ollama pull mistral` and `ollama pull nomic-embed-text`
 - Verify with `ollama list`
 
-### Import errors
+**Import errors**
 - Ensure virtual environment is activated
 - Run `pip install -r requirements.txt`
+- Check Python version: `python3 --version` (requires 3.8+)
 
-### Port already in use
+**Port already in use**
 - Change `API_PORT` in `.env` file
 - Or stop the process using port 8080
 
-## 📝 Development
+**Web UI not connecting to backend**
+- Verify backend is running on the configured port
+- Check CORS settings if accessing from different origin
+- Verify API URL in environment configuration
 
-See [RAG_IMPLEMENTATION_PLAN.md](RAG_IMPLEMENTATION_PLAN.md) for detailed implementation plan and architecture.
+**Confluence import fails**
+- Verify Confluence settings are configured correctly
+- Check that `confluence-markdown-exporter` is installed: `pip install confluence-markdown-exporter==1.0.4`
+- Ensure API token has read permissions for the page
+
+---
+
+## 🛠️ Development
+
+### Running in Development Mode
+
+**Backend:**
+```bash
+# Activate virtual environment
+source venv/bin/activate
+
+# Run with auto-reload
+FLASK_DEBUG=True python3 -c "from src.app import app; app.run(host='localhost', port=8080, debug=True)"
+```
+
+**Frontend:**
+```bash
+cd web-ui
+npm start
+# Access at http://localhost:4200
+```
+
+### Building for Production
+
+**Backend:**
+```bash
+# No build step needed - Python runs directly
+# Use production WSGI server like gunicorn:
+pip install gunicorn
+gunicorn -w 4 -b 0.0.0.0:8080 "src.app:app"
+```
+
+**Frontend:**
+```bash
+cd web-ui
+npm run build
+# Output in web-ui/dist/
+```
+
+---
 
 ## 📄 License
 
-See LICENSE file for details.
+See [LICENSE](LICENSE) file for details.
+
+---
 
 ## 🙏 Acknowledgments
 
@@ -441,3 +488,14 @@ See LICENSE file for details.
 - Uses [Ollama](https://ollama.ai/) for local LLM
 - Uses [ChromaDB](https://www.trychroma.com/) for vector storage
 - Uses [LangChain](https://www.langchain.com/) for RAG orchestration
+- Uses [Angular](https://angular.io/) for the web interface
+
+---
+
+<div align="center">
+
+**Made with ❤️ for developers who value privacy and local processing**
+
+[Report Bug](https://github.com/your-org/ragu/issues) • [Request Feature](https://github.com/your-org/ragu/issues) • [Documentation](docs/)
+
+</div>

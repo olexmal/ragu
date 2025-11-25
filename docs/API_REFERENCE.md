@@ -106,6 +106,59 @@ Embed multiple files from a directory.
 }
 ```
 
+#### `POST /confluence/import`
+
+Import a Confluence page to the vector database.
+
+**Authentication:** Required if `AUTH_REQUIRED_FOR=write` or `all`
+
+**Content-Type:** `application/json`
+
+**Request Body:**
+```json
+{
+  "page_id": "123456",
+  "version": "1.2.3",
+  "overwrite": false
+}
+```
+
+**Parameters:**
+- `page_id` (required): Confluence page ID (numeric) or full Confluence URL
+- `version` (optional): Version string for collection naming
+- `overwrite` (optional): If `true`, replace existing collection (default: `false`)
+
+**Example:**
+```bash
+# Using page ID
+curl -X POST http://localhost:8080/confluence/import \
+  -H "Content-Type: application/json" \
+  -d '{
+    "page_id": "123456",
+    "version": "1.2.3"
+  }'
+
+# Using Confluence URL
+curl -X POST http://localhost:8080/confluence/import \
+  -H "Content-Type: application/json" \
+  -d '{
+    "page_id": "https://your-domain.atlassian.net/wiki/spaces/SPACE/pages/123456/Page+Title",
+    "version": "1.2.3"
+  }'
+```
+
+**Response:**
+```json
+{
+  "message": "Confluence page 123456 imported successfully",
+  "filename": "confluence-page-123456.md",
+  "version": "1.2.3",
+  "mode": "incremental"
+}
+```
+
+**Note:** Confluence settings must be configured in Settings before importing pages. The system uses `confluence-markdown-exporter` to convert Confluence pages to Markdown before embedding.
+
 ---
 
 ### Querying

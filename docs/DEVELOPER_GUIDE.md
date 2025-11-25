@@ -5,12 +5,22 @@
 The RAG system is built with a modular architecture that separates concerns into distinct components:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      API Layer (app.py)                     │
-│  - RESTful endpoints                                        │
-│  - Request validation                                       │
-│  - Security controls                                        │
-└──────────────────────┬──────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                    Web UI (Angular)                             │
+│  - Query Interface                                              │
+│  - Upload & Import                                              │
+│  - Collections Management                                       │
+│  - Settings & Configuration                                     │
+│  - Monitoring & Analytics                                       │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │ HTTP/REST API
+┌──────────────────────────▼──────────────────────────────────────┐
+│                      API Layer (app.py)                         │
+│  - RESTful endpoints                                            │
+│  - Request validation                                           │
+│  - Security controls                                            │
+│  - Session management                                           │
+└──────────────────────┬──────────────────────────────────────────┘
                        │
         ┌──────────────┴──────────────┐
         │                             │
@@ -21,6 +31,7 @@ The RAG system is built with a modular architecture that separates concerns into
 │  - RAG chain   │          │  - Document load  │
 │  - Caching     │          │  - Chunking       │
 │  - Monitoring  │          │  - Embedding      │
+│                │          │  - Confluence     │
 └───────┬────────┘          └─────────┬─────────┘
         │                             │
         └──────────────┬──────────────┘
@@ -32,6 +43,75 @@ The RAG system is built with a modular architecture that separates concerns into
             │  - Collections      │
             └─────────────────────┘
 ```
+
+### Frontend Architecture (Web UI)
+
+The web UI is built with **Angular 19** and follows a feature-based architecture:
+
+```
+web-ui/src/app/
+├── features/              # Feature modules
+│   ├── admin/             # Admin features
+│   │   ├── dashboard/     # Dashboard component
+│   │   ├── import/        # Upload & Import (tabs: Upload, Confluence)
+│   │   ├── collections/   # Collections management
+│   │   ├── monitoring/    # Monitoring & analytics
+│   │   └── settings/      # Settings management
+│   ├── query/             # Query interface
+│   │   ├── components/
+│   │   │   ├── query-results/    # Query results display
+│   │   │   └── query-history/    # Query history
+│   │   └── query.component.ts
+│   └── auth/              # Authentication
+│       └── login/          # Login component
+├── core/                   # Core services and state
+│   ├── services/          # API services
+│   │   ├── api.service.ts
+│   │   ├── embed.service.ts
+│   │   ├── query.service.ts
+│   │   ├── collection.service.ts
+│   │   └── settings.service.ts
+│   ├── state/             # State management (signals)
+│   │   ├── query.state.ts
+│   │   └── ui.state.ts
+│   └── models/             # Data models
+├── layout/                 # Layout components
+│   ├── header/            # Header component
+│   ├── navigation/        # Sidebar navigation
+│   └── footer/            # Footer component
+└── shared/                 # Shared components
+    └── components/
+        └── help-icon/     # Help icon component
+```
+
+**Key Frontend Technologies:**
+- Angular 19 with standalone components
+- Signals for reactive state management
+- Tailwind CSS for styling
+- RxJS for async operations
+- Standalone components (no NgModules)
+
+**Frontend Development:**
+```bash
+# Install dependencies
+cd web-ui
+npm install
+
+# Development server
+npm start
+# Access at http://localhost:4200
+
+# Build for production
+npm run build
+# Output in web-ui/dist/
+```
+
+**Adding New Frontend Features:**
+1. Create component in appropriate feature module
+2. Add route in `app.routes.ts`
+3. Update navigation if needed
+4. Create service methods in `core/services/`
+5. Add state management if needed
 
 ## Core Components
 
@@ -115,7 +195,35 @@ CACHE_MAX_SIZE=100
 CACHE_DIR=./.rag_cache
 ```
 
-### 5. Monitoring Module (`monitoring.py`)
+### 5. Confluence Integration (`embed.py`)
+
+**Purpose**: Import Confluence pages and convert them to Markdown before embedding.
+
+**Key Features**:
+- Confluence page import via page ID or URL
+- Automatic Markdown conversion using `confluence-markdown-exporter`
+- Version-aware collection naming
+- Incremental updates support
+
+**Usage**:
+```python
+from src.embed import import_confluence_page_to_vector_db
+
+# Import Confluence page
+result = import_confluence_page_to_vector_db(
+    page_id="123456",
+    version="1.2.3",
+    overwrite=False
+)
+```
+
+**Configuration**:
+Confluence settings are managed via the Settings API or web UI:
+- Confluence URL
+- Username/Email
+- API Token
+
+### 6. Monitoring Module (`monitoring.py`)
 
 **Purpose**: Tracks query patterns and embedding operations.
 
@@ -376,5 +484,5 @@ When adding new features:
 - [LangChain Documentation](https://python.langchain.com/)
 - [ChromaDB Documentation](https://docs.trychroma.com/)
 - [Ollama Documentation](https://ollama.ai/docs)
-- [RAG Implementation Plan](./RAG_IMPLEMENTATION_PLAN.md)
+- [Angular Documentation](https://angular.io/docs)
 
