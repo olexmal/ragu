@@ -31,13 +31,21 @@ RAG System is a powerful, privacy-focused documentation search and query platfor
 
 ---
 
-## 📸 Screenshot
+## 📸 Screenshots
 
 <div align="center">
 
-![Query Interface](docs/images/image.png)
+![Query Interface](docs/images/start_page.png)
 
 *Query Documentation page - Ask questions about your documentation with natural language*
+
+![Admin Dashboard](docs/images/admin_dashboard.png)
+
+*Admin Dashboard - System overview and quick actions*
+
+![System Monitoring](docs/images/system_monitoring.png)
+
+*System Monitoring - Query analytics and performance metrics*
 
 </div>
 
