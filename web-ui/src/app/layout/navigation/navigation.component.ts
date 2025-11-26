@@ -17,6 +17,11 @@ export class NavigationComponent {
 
   isAuthenticated = this.authService.isAuthenticated;
   sidebarOpen = this.uiState.sidebarOpen;
+  sidebarCollapsed = this.uiState.sidebarCollapsed;
+
+  toggleCollapsed(): void {
+    this.uiState.toggleSidebarCollapsed();
+  }
 
   userMenuItems = [
     { path: '/query', label: 'Query', icon: 'search' },

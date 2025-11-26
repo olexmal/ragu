@@ -1,18 +1,35 @@
 // Custom Utility Classes
 
 .query-input {
-  @apply w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+  @apply w-full px-4 py-3 rounded-lg border border-surface-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
 }
 
 .source-card {
-  @apply bg-white rounded-lg p-4 shadow-md hover:shadow-lg transition-shadow;
+  @apply bg-white rounded-lg p-4 shadow-md hover:shadow-lg transition-shadow border border-surface-200;
 }
 
 .admin-panel {
-  @apply bg-gray-50 min-h-screen p-6;
+  @apply bg-background-50 min-h-screen p-6;
 }
 
 .metric-card {
-  @apply bg-white rounded-lg p-6 shadow-md;
+  @apply bg-white rounded-lg p-6 shadow-md border border-surface-200;
+}
+
+// Status Indicators
+.status-dot {
+  @apply w-2 h-2 rounded-full inline-block;
+}
+
+.status-success {
+  @apply bg-status-success;
+}
+
+.status-progress {
+  @apply bg-status-progress;
+}
+
+.status-pending {
+  @apply bg-status-pending;
 }
 

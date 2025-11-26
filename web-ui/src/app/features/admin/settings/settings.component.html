@@ -2,7 +2,7 @@
   <h1 class="text-3xl font-bold text-gray-900">Settings</h1>
   
   <!-- Tab Navigation -->
-  <div class="border-b border-gray-200 mb-6">
+  <div class="border-b border-surface-200 mb-6">
     <nav class="flex space-x-8" aria-label="Tabs">
       @for (tab of tabs; track tab.id) {
         <button
@@ -13,7 +13,7 @@
           [class.border-transparent]="activeTab() !== tab.id"
           [class.text-gray-500]="activeTab() !== tab.id"
           [class.hover:text-gray-700]="activeTab() !== tab.id"
-          [class.hover:border-gray-300]="activeTab() !== tab.id"
+          [class.hover:border-surface-200]="activeTab() !== tab.id"
           class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2"
         >
           @if (tab.icon === 'settings') {
@@ -40,7 +40,7 @@
   
   <!-- System Settings Section -->
   @if (activeTab() === 'system') {
-  <div class="bg-white rounded-lg shadow-md p-6">
+      <div class="bg-white rounded-lg shadow-md p-6 border border-surface-200">
     <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
       <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
@@ -76,7 +76,7 @@
           [(ngModel)]="systemSettings().systemName"
           name="systemName"
           required
-          class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          class="w-full px-4 py-2 rounded-lg border border-surface-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
           placeholder="Enter system name"
         />
         <p class="mt-1 text-xs text-gray-500">
@@ -110,7 +110,7 @@
 
   <!-- Confluence Integration Section -->
   @if (activeTab() === 'confluence') {
-  <div class="bg-white rounded-lg shadow-md p-6">
+      <div class="bg-white rounded-lg shadow-md p-6 border border-surface-200">
     <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
       <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>
@@ -160,7 +160,7 @@
             [(ngModel)]="confluenceSettings().url"
             name="confluenceUrl"
             required
-            class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            class="w-full px-4 py-2 rounded-lg border border-surface-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
             placeholder="https://your-domain.atlassian.net or https://confluence.example.com"
           />
           <p class="mt-1 text-xs text-gray-500">Enter your Confluence instance URL</p>
@@ -180,7 +180,7 @@
             [(ngModel)]="confluenceSettings().instanceType"
             name="instanceType"
             required
-            class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            class="w-full px-4 py-2 rounded-lg border border-surface-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="cloud">Confluence Cloud</option>
             <option value="server">Confluence Server/Data Center</option>
@@ -201,7 +201,7 @@
             type="password"
             [(ngModel)]="confluenceSettings().apiToken"
             name="apiToken"
-            class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            class="w-full px-4 py-2 rounded-lg border border-surface-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
             placeholder="Enter API token"
           />
           <p class="mt-1 text-xs text-gray-500">
@@ -225,7 +225,7 @@
                 type="text"
                 [(ngModel)]="confluenceSettings().username"
                 name="username"
-                class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                class="w-full px-4 py-2 rounded-lg border border-surface-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="Enter username"
               />
             </div>
@@ -242,7 +242,7 @@
                 type="password"
                 [(ngModel)]="confluenceSettings().password"
                 name="password"
-                class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                class="w-full px-4 py-2 rounded-lg border border-surface-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="Enter password or API token"
               />
               <p class="mt-1 text-xs text-gray-500">
@@ -312,7 +312,7 @@
 
   <!-- LLM & Embedding Providers Section -->
   @if (activeTab() === 'llm-providers') {
-  <div class="bg-white rounded-lg shadow-md p-6">
+      <div class="bg-white rounded-lg shadow-md p-6 border border-surface-200">
     <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
       <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
@@ -350,7 +350,7 @@
 
       @for (providerKey of getLLMProviderKeys(); track providerKey) {
         @let provider = llmProviders().llmProviders[providerKey];
-        <div class="border border-gray-200 rounded-lg p-4 space-y-4">
+        <div class="border border-surface-200 rounded-lg p-4 space-y-4">
           <!-- Per-provider test messages -->
           @if (getProviderTestError(providerKey)) {
             <div class="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">
@@ -431,7 +431,7 @@
                 type="text"
                 [(ngModel)]="provider.model"
                 [name]="'llm-model-' + providerKey"
-                class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+                class="w-full px-3 py-2 border border-surface-200 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="Model name"
               />
             </div>
@@ -447,7 +447,7 @@
                 min="0"
                 max="2"
                 step="0.1"
-                class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+                class="w-full px-3 py-2 border border-surface-200 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -459,7 +459,7 @@
                 type="password"
                 [(ngModel)]="provider.apiKey"
                 [name]="'llm-apikey-' + providerKey"
-                class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+                class="w-full px-3 py-2 border border-surface-200 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="Enter API key"
               />
             </div>
@@ -472,7 +472,7 @@
                 type="text"
                 [(ngModel)]="provider.baseUrl"
                 [name]="'llm-baseurl-' + providerKey"
-                class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+                class="w-full px-3 py-2 border border-surface-200 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="API base URL (optional)"
               />
             </div>
@@ -484,7 +484,7 @@
         <select
           [ngModel]="newProviderType()"
           (ngModelChange)="newProviderType.set($event)"
-          class="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+          class="px-3 py-2 border border-surface-200 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
           <option value="">Select provider type...</option>
           @for (type of availableProviderTypes; track type) {
@@ -517,7 +517,7 @@
 
       @for (providerKey of getEmbeddingProviderKeys(); track providerKey) {
         @let provider = llmProviders().embeddingProviders[providerKey];
-        <div class="border border-gray-200 rounded-lg p-4 space-y-4">
+        <div class="border border-surface-200 rounded-lg p-4 space-y-4">
           <!-- Per-provider test messages -->
           @if (getProviderTestError(providerKey)) {
             <div class="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">
@@ -598,7 +598,7 @@
                 type="text"
                 [(ngModel)]="provider.model"
                 [name]="'emb-model-' + providerKey"
-                class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+                class="w-full px-3 py-2 border border-surface-200 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="Model name"
               />
             </div>
@@ -611,7 +611,7 @@
                 type="password"
                 [(ngModel)]="provider.apiKey"
                 [name]="'emb-apikey-' + providerKey"
-                class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+                class="w-full px-3 py-2 border border-surface-200 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="Enter API key"
               />
             </div>
@@ -624,7 +624,7 @@
                 type="text"
                 [(ngModel)]="provider.baseUrl"
                 [name]="'emb-baseurl-' + providerKey"
-                class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+                class="w-full px-3 py-2 border border-surface-200 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="API base URL (optional)"
               />
             </div>
@@ -636,7 +636,7 @@
         <select
           [ngModel]="newProviderType()"
           (ngModelChange)="newProviderType.set($event)"
-          class="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+          class="px-3 py-2 border border-surface-200 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
           <option value="">Select provider type...</option>
           @for (type of availableProviderTypes; track type) {

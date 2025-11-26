@@ -18,7 +18,7 @@
   }
 
   <!-- Query Input Form -->
-  <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+  <div class="bg-white rounded-lg shadow-md p-6 mb-6 border border-surface-200">
     <form (ngSubmit)="onSubmit()" [class.opacity-50]="queryState.loading()" class="space-y-4">
       <!-- Query Input -->
       <div>
@@ -49,7 +49,7 @@
             id="version"
             [(ngModel)]="selectedVersion"
             name="version"
-            class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            class="w-full px-4 py-2 rounded-lg border border-surface-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option [value]="undefined">All Versions</option>
             @for (collection of collections(); track collection.name) {
@@ -71,7 +71,7 @@
             name="k"
             min="1"
             max="10"
-            class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            class="w-full px-4 py-2 rounded-lg border border-surface-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
 

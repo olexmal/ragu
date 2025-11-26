@@ -1,2 +1,17 @@
 // Navigation component styles
 
+// Smooth transitions for sidebar collapse/expand
+aside {
+  transition: width 0.3s ease-in-out;
+}
+
+// Smooth transitions for text visibility
+nav span {
+  transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+}
+
+// Ensure icons maintain proper spacing during transition
+nav a svg {
+  transition: margin 0.3s ease-in-out;
+}
+

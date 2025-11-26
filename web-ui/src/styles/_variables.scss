@@ -1,9 +1,21 @@
 // SCSS Variables
-$primary-color: #0ea5e9;
+$primary-color: #f97316;
 $secondary-color: #64748b;
 $spacing-unit: 0.5rem;
 $border-radius: 0.375rem;
 $transition-duration: 0.2s;
+
+// Status Colors
+$status-success: #10b981;
+$status-progress: #3b82f6;
+$status-pending: #ef4444;
+
+// Color Scheme Variables
+$background-50: #F8FAFC;
+$background-100: #F1F5F9;
+$surface-50: #F5F7FA;
+$surface-100: #E8EDF2;
+$surface-200: #CBD5E1;
 
 // Breakpoints
 $breakpoint-sm: 640px;
