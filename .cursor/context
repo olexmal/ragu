@@ -1,0 +1,200 @@
+# RAG System - Project Context
+
+## Project Description
+A local, privacy-focused RAG (Retrieval-Augmented Generation) system that enables semantic search across documentation using local AI models. Features a modern Angular web interface and Flask REST API backend.
+
+## Key Features
+- Document upload (PDF, HTML, TXT, Markdown)
+- Confluence page import
+- Natural language querying with RAG
+- Version-aware document collections
+- Query history and caching
+- Multi-LLM provider support (Ollama, OpenAI, Anthropic, Azure, Google, OpenRouter)
+- Monitoring and analytics
+- Web UI with collapsible sidebar
+
+## Project Structure
+
+```
+ragu/
+├── src/                    # Python backend source
+│   ├── app.py              # Flask API server (main entry point)
+│   ├── embed.py            # Document embedding logic
+│   ├── query.py            # Query processing and RAG chains
+│   ├── get_vector_db.py    # ChromaDB initialization
+│   ├── auth.py             # Authentication and authorization
+│   ├── settings.py         # Settings storage
+│   ├── llm_providers.py    # LLM provider implementations
+│   ├── confluence.py       # Confluence integration
+│   ├── cache.py            # Query caching
+│   ├── query_history.py    # Query history
+│   ├── monitoring.py       # Analytics
+│   └── utils.py            # Utilities
+├── web-ui/                 # Angular frontend
+│   ├── src/app/
+│   │   ├── features/       # Feature modules
+│   │   ├── core/           # Services, state, models
+│   │   ├── layout/         # Layout components
+│   │   └── shared/         # Shared components
+│   └── package.json
+├── tests/                  # Backend tests
+├── docs/                   # Documentation
+├── scripts/                # Utility scripts
+├── chroma/                 # ChromaDB data (gitignored)
+├── .rag_settings/         # Application settings (gitignored)
+├── Dockerfile              # Backend Docker image
+├── docker-compose.yml      # Multi-service Docker setup
+├── requirements.txt        # Python dependencies
+└── .env.example           # Environment configuration template
+```
+
+## API Endpoints
+
+### Core Endpoints
+- `GET /health` - Health check
+- `POST /query` - Query documentation
+- `POST /embed` - Embed single file
+- `POST /embed-batch` - Embed multiple files
+- `POST /confluence/import` - Import Confluence page
+
+### Collections
+- `GET /collections` - List all collections
+- `GET /collections/<version>` - Get collection info
+- `GET /collections/<version>/documents` - List documents
+- `DELETE /collections/<version>` - Delete collection
+
+### Settings
+- `GET /settings/confluence` - Get Confluence settings
+- `POST /settings/confluence` - Save Confluence settings
+- `GET /settings/system` - Get system settings
+- `POST /settings/system` - Save system settings
+- `GET /settings/llm-providers` - Get LLM providers
+- `POST /settings/llm-providers` - Save LLM providers
+
+### Authentication
+- `POST /auth/login` - Login
+- `POST /auth/logout` - Logout
+- `GET /auth/status` - Get auth status
+
+## Data Flow
+
+### Query Flow
+1. User submits query via Angular UI
+2. Frontend sends POST to `/query` endpoint
+3. Backend validates request
+4. Query module retrieves relevant documents from ChromaDB
+5. RAG chain generates answer using LLM
+6. Response includes answer, sources, and statistics
+7. Frontend displays results
+
+### Embedding Flow
+1. User uploads file or imports from Confluence
+2. Frontend sends file/data to backend
+3. Backend processes document (load, chunk, embed)
+4. Embeddings stored in ChromaDB collection
+5. Response confirms success
+
+## State Management (Frontend)
+
+### State Services
+- `QueryState` - Query results and loading state
+- `CollectionState` - Collections data
+- `UiState` - UI state (sidebar, notifications)
+
+### Services
+- `ApiService` - Base HTTP service
+- `QueryService` - Query operations
+- `CollectionService` - Collection operations
+- `AuthService` - Authentication
+- `SettingsService` - Settings management
+
+## Environment Variables
+
+Key variables (see `.env.example` for full list):
+- `CHROMA_PATH` - ChromaDB storage path
+- `COLLECTION_NAME` - Base collection name
+- `LLM_MODEL` - LLM model name (default: mistral)
+- `TEXT_EMBEDDING_MODEL` - Embedding model (default: nomic-embed-text)
+- `API_PORT` - Flask server port (default: 8080)
+- `AUTH_ENABLED` - Enable authentication (default: true)
+- `AUTH_USERNAME` / `AUTH_PASSWORD` - Credentials
+
+## Dependencies
+
+### Backend Key Libraries
+- langchain, langchain-community, langchain-core
+- chromadb
+- flask, flask-cors
+- unstructured (document parsing)
+- atlassian-python-api (Confluence)
+- confluence-markdown-exporter (CLI tool)
+
+### Frontend Key Libraries
+- @angular/core, @angular/common, @angular/router
+- rxjs
+- tailwindcss
+- @tailwindcss/typography
+
+## Development Workflow
+
+### Backend
+```bash
+# Activate virtual environment
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run server
+python -c "from src.app import app; app.run(host='localhost', port=8080)"
+```
+
+### Frontend
+```bash
+cd web-ui
+npm install
+npm start  # Development server on :4200
+npm run build  # Production build
+```
+
+### Docker
+```bash
+docker-compose up -d  # Start all services
+docker-compose logs -f  # View logs
+```
+
+## Common Tasks
+
+### Adding a New Document Type
+1. Update `src/embed.py` - add loader in `detect_document_format()`
+2. Test with sample file
+3. Update documentation
+
+### Adding a New LLM Provider
+1. Add provider class in `src/llm_providers.py`
+2. Implement required methods
+3. Add to factory
+4. Update settings UI
+
+### Adding a New Frontend Page
+1. Create component in `web-ui/src/app/features/`
+2. Add route in `app.routes.ts`
+3. Update navigation component
+4. Add service methods if needed
+
+## Known Issues & Future Work
+- Password encryption not yet implemented (planned)
+- API rate limiting not yet implemented (planned)
+- Angular unit tests needed
+- E2E tests needed
+- ESLint configuration needed
+- Backup/restore functionality planned
+
+## Design System
+Using DESIGNO design system:
+- Orange primary color (#f97316)
+- White card backgrounds
+- Light gray surfaces
+- Status colors for indicators
+- Collapsible sidebar navigation
+
