@@ -9,7 +9,7 @@
 [![Ollama](https://img.shields.io/badge/Ollama-Required-orange.svg)](https://ollama.ai/)
 [![License](https://img.shields.io/badge/License-See%20LICENSE-green.svg)](LICENSE)
 
-[Quick Start](#-quick-start) • [Features](#-features) • [Documentation](#-documentation) • [API Reference](docs/API_REFERENCE.md)
+[Quick Start](#-quick-start) • [Features](#-features) • [Documentation](#-documentation) • [API Reference](docs/API_REFERENCE.md) • [Task Tracking](.github/TASK_TRACKING.md)
 
 </div>
 
