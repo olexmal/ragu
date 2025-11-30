@@ -12,10 +12,12 @@ case "$1" in
       echo "Usage: $0 create \"[TASK] Title\" \"Description\""
       exit 1
     fi
-    gh issue create --repo "$REPO" --title "$TITLE" --body "${BODY:-No description}" --label task
+    gh issue create --repo "$REPO" --title "$TITLE" --body "${BODY:-No description}" --label task 2>/dev/null || \
+    gh issue create --repo "$REPO" --title "$TITLE" --body "${BODY:-No description}"
     ;;
   list)
-    gh issue list --repo "$REPO" --label task
+    echo "All tasks/issues:"
+    gh issue list --repo "$REPO" --state all
     ;;
   view)
     if [ -z "$2" ]; then
@@ -32,7 +34,8 @@ case "$1" in
     gh issue close "$2" --repo "$REPO"
     ;;
   open)
-    gh issue list --repo "$REPO" --state open --label task
+    echo "Open tasks/issues:"
+    gh issue list --repo "$REPO" --state open
     ;;
   *)
     echo "GitHub Task Management Helper"
