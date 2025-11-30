@@ -5,6 +5,7 @@ Helper functions for common operations.
 import os
 import subprocess
 import re
+import logging
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -92,19 +93,100 @@ def generate_collection_name(base_name, version=None):
     return base_name
 
 
+def redact_api_keys(text: str) -> str:
+    """
+    Redact API keys and sensitive information from text.
+    
+    Args:
+        text: Text that may contain API keys
+        
+    Returns:
+        str: Text with API keys redacted
+    """
+    import re
+    
+    # Pattern for OpenRouter API keys (sk-or-v1-...)
+    text = re.sub(r'sk-or-v1-[a-zA-Z0-9]{40,}', 'sk-or-v1-***REDACTED***', text)
+    
+    # Pattern for OpenAI/Anthropic API keys (sk-...)
+    text = re.sub(r'sk-[a-zA-Z0-9]{20,}', 'sk-***REDACTED***', text)
+    
+    # Pattern for generic API keys in query parameters
+    text = re.sub(r'api_key=([^&\s]+)', r'api_key=***REDACTED***', text, flags=re.IGNORECASE)
+    text = re.sub(r'apikey=([^&\s]+)', r'apikey=***REDACTED***', text, flags=re.IGNORECASE)
+    
+    # Pattern for Authorization headers
+    text = re.sub(r'Authorization:\s*(?:Bearer\s+)?([^\s"]+)', r'Authorization: Bearer ***REDACTED***', text, flags=re.IGNORECASE)
+    
+    return text
+
+
+def redact_config(config: dict) -> dict:
+    """
+    Redact sensitive fields from configuration dictionary.
+    
+    Args:
+        config: Configuration dictionary
+        
+    Returns:
+        dict: Configuration with sensitive fields redacted
+    """
+    sensitive_keys = ['api_key', 'apiKey', 'apikey', 'password', 'token', 'secret', 'auth']
+    redacted = config.copy()
+    
+    for key in redacted:
+        if any(sensitive in key.lower() for sensitive in sensitive_keys):
+            if isinstance(redacted[key], str) and len(redacted[key]) > 10:
+                redacted[key] = '***REDACTED***'
+    
+    return redacted
+
+
+class RedactingFormatter(logging.Formatter):
+    """Custom formatter that redacts API keys from log messages."""
+    
+    def format(self, record):
+        # Redact API keys from the message
+        if hasattr(record, 'msg') and isinstance(record.msg, str):
+            record.msg = redact_api_keys(record.msg)
+        elif hasattr(record, 'msg'):
+            record.msg = str(record.msg)
+            record.msg = redact_api_keys(record.msg)
+        
+        # Redact from args if present
+        if hasattr(record, 'args') and record.args:
+            new_args = []
+            for arg in record.args:
+                if isinstance(arg, str):
+                    new_args.append(redact_api_keys(arg))
+                elif isinstance(arg, dict):
+                    new_args.append(redact_config(arg))
+                else:
+                    new_args.append(arg)
+            record.args = tuple(new_args)
+        
+        return super().format(record)
+
+
 def setup_logging():
     """
-    Configure logging for the application.
+    Configure logging for the application with API key redaction.
     """
     import logging
     
+    formatter = RedactingFormatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    
+    file_handler = logging.FileHandler('ragu.log')
+    file_handler.setFormatter(formatter)
+    
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(formatter)
+    
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler('ragu.log'),
-            logging.StreamHandler()
-        ]
+        handlers=[file_handler, stream_handler]
     )
     
     return logging.getLogger(__name__)

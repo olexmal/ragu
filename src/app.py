@@ -30,7 +30,7 @@ else:
     from .query import query_docs, query_simple
     from .multi_version_query import query_multiple_versions, compare_versions
     from .query_history import get_query_history
-    from .utils import setup_logging
+    from .utils import setup_logging, redact_api_keys, redact_config, RedactingFormatter
     from .auth import requires_auth, requires_write_auth, get_auth_status
     from .code_extractor import extract_code_from_document, format_code_for_response
     from .settings import get_confluence_settings, save_confluence_settings, get_system_settings, save_system_settings, get_llm_providers, save_llm_providers, get_active_llm_provider, get_active_embedding_provider
@@ -54,6 +54,17 @@ TEMP_DIR = Path(os.getenv('TEMP_FOLDER', './_temp'))
 TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
 logger = setup_logging()
+
+# Configure werkzeug (Flask's HTTP request logger) to redact API keys
+import logging
+from .utils import RedactingFormatter
+
+werkzeug_logger = logging.getLogger('werkzeug')
+# Apply redacting formatter to all werkzeug handlers
+for handler in werkzeug_logger.handlers:
+    handler.setFormatter(RedactingFormatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    ))
 
 
 @app.route('/health', methods=['GET'])
@@ -1197,14 +1208,15 @@ def test_llm_provider_endpoint():
                 config['model'] = 'openai/text-embedding-3-small'
         
         # Log the entire config for debugging
-        logger.debug(f"Full config received: {config}")
-        logger.debug(f"Model value: {config.get('model')}, type: {type(config.get('model')).__name__}, repr: {repr(config.get('model'))}")
+        logger.debug(f"Full config received: {redact_config(config)}")
+        logger.debug(f"Model value: {config.get('model')}, type: {type(config.get('model')).__name__}")
         
         # Test provider connection based on category
         try:
             if provider_category == 'embedding':
                 # Test embedding provider
-                logger.debug(f"Testing embedding provider {provider_type} with config model: {config.get('model')} (type: {type(config.get('model')).__name__})")
+                redacted_config = redact_config(config)
+                logger.debug(f"Testing embedding provider {provider_type} with config model: {redacted_config.get('model')} (type: {type(config.get('model')).__name__})")
                 # Force model to be a string one more time before passing to factory
                 if 'model' in config:
                     model_val = config['model']
