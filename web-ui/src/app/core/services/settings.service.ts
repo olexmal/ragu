@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { ApiService } from './api.service';
-import { ConfluenceSettings, ConfluenceTestResult, ConfluenceFetchRequest, ConfluenceFetchResponse, SystemSettings, LLMProvidersSettings, LLMProviderConfig, LLMProviderTestResult } from '../models/settings.models';
+import { ConfluenceSettings, ConfluenceTestResult, ConfluenceFetchRequest, ConfluenceFetchResponse, SystemSettings, LLMProvidersSettings, LLMProviderConfig, LLMProviderTestResult, ModelOption } from '../models/settings.models';
 
 @Injectable({
   providedIn: 'root'
@@ -164,7 +164,25 @@ export class SettingsService extends ApiService {
     const backendConfig: any = {};
     Object.keys(config).forEach(key => {
       const snakeKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
-      backendConfig[snakeKey] = config[key as keyof LLMProviderConfig];
+      let value = config[key as keyof LLMProviderConfig];
+      
+      // Normalize model field - ensure it's always a string
+      if (key === 'model' && value !== undefined && value !== null) {
+        if (typeof value === 'object') {
+          // Extract string from object
+          value = (value as any).id || (value as any).name || (value as any).model || (value as any).value || String(value);
+        }
+        // Ensure it's a string
+        value = String(value);
+        // If it's "[object Object]", use default
+        if (value === '[object Object]' || value.includes('[object Object]')) {
+          value = category === 'embedding' && providerType === 'openrouter' 
+            ? 'openai/text-embedding-3-small' 
+            : '';
+        }
+      }
+      
+      backendConfig[snakeKey] = value;
     });
     
     return this.post<any>('/settings/llm-providers/test', {
@@ -215,6 +233,22 @@ export class SettingsService extends ApiService {
           embedding: convertProviderConfig(response.embedding || {})
         };
       })
+    );
+  }
+
+  getProviderModels(providerType: string, category: 'llm' | 'embedding', apiKey?: string): Observable<{models: ModelOption[]}> {
+    const params: any = {
+      provider_type: providerType,
+      category: category
+    };
+    if (apiKey) {
+      params.api_key = apiKey;
+    }
+    
+    return this.get<{models: ModelOption[]}>('/settings/llm-providers/models', params).pipe(
+      map((response: any) => ({
+        models: response.models || []
+      }))
     );
   }
 }

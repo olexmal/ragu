@@ -65,6 +65,14 @@ export interface LLMProvidersSettings {
   embeddingProviders: { [key: string]: LLMProviderConfig };
 }
 
+export interface ModelOption {
+  id: string;
+  name: string;
+  description?: string;
+  context_length?: number;
+  pricing?: any;
+}
+
 export interface LLMProviderTestResult {
   success: boolean;
   message: string;

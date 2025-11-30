@@ -24,7 +24,7 @@ export class NavigationComponent {
   }
 
   userMenuItems = [
-    { path: '/query', label: 'Query', icon: 'search' },
+    { path: '/query', label: 'Chat Playground', icon: 'chat' },
     { path: '/history', label: 'History', icon: 'clock' },
   ];
 

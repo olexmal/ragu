@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
+import requests
 
 # Handle imports for both module and standalone execution
 if __name__ == '__main__':
@@ -974,6 +975,150 @@ def get_active_llm_providers_endpoint():
         return jsonify({"error": f"Failed to get active providers: {str(e)}"}), 500
 
 
+@app.route('/settings/llm-providers/models', methods=['GET'])
+@requires_auth
+def get_llm_provider_models():
+    """Get available models for a provider, filtered by category (llm or embedding) and free only."""
+    try:
+        provider_type = request.args.get('provider_type')
+        category = request.args.get('category', 'llm')  # 'llm' or 'embedding'
+        api_key = request.args.get('api_key')  # Optional, for OpenRouter
+        
+        if not provider_type:
+            return jsonify({"error": "provider_type is required"}), 400
+        
+        if category not in ['llm', 'embedding']:
+            return jsonify({"error": "category must be 'llm' or 'embedding'"}), 400
+        
+        # For OpenRouter, fetch from their API
+        if provider_type == 'openrouter':
+            if not api_key:
+                return jsonify({"error": "API key is required for OpenRouter"}), 400
+            
+            try:
+                headers = {
+                    'Authorization': f'Bearer {api_key}',
+                    'Content-Type': 'application/json'
+                }
+                response = requests.get('https://openrouter.ai/api/v1/models', headers=headers, timeout=10)
+                
+                if response.status_code != 200:
+                    return jsonify({
+                        "error": f"Failed to fetch models from OpenRouter: {response.status_code}",
+                        "models": []
+                    }), 503
+                
+                models_data = response.json()
+                all_models = models_data.get('data', [])
+                
+                # Filter models based on category and free pricing
+                filtered_models = []
+                for model in all_models:
+                    model_id = model.get('id', '')
+                    model_name = model.get('name', model_id)
+                    pricing = model.get('pricing', {})
+                    
+                    # Check if model is free (prompt and completion prices are 0 or null)
+                    prompt_price = pricing.get('prompt', '0')
+                    completion_price = pricing.get('completion', '0')
+                    is_free = (
+                        (prompt_price == '0' or prompt_price == 0 or prompt_price is None) and
+                        (completion_price == '0' or completion_price == 0 or completion_price is None)
+                    )
+                    
+                    if not is_free:
+                        continue  # Skip paid models
+                    
+                    # Check if model supports the requested category
+                    modalities = model.get('modalities', [])
+                    capabilities = model.get('capabilities', {})
+                    
+                    if category == 'embedding':
+                        # Check for embedding support - be strict to avoid LLM models
+                        # Only include models that explicitly support embeddings
+                        supports_embeddings = (
+                            'embeddings' in modalities or
+                            'embedding' in modalities or
+                            capabilities.get('embeddings', False)
+                        ) or (
+                            # Only allow models with 'embedding' in name if they're known embedding models
+                            ('text-embedding' in model_id.lower() or 
+                             model_id.lower().endswith('-embed') or
+                             model_id.lower().startswith('embed-'))
+                        )
+                        if supports_embeddings:
+                            # Try to get embedding dimension from model info
+                            # Some models have this in their description or capabilities
+                            embedding_dimension = None
+                            if 'dimension' in model:
+                                embedding_dimension = model.get('dimension')
+                            elif 'embedding_dimension' in model:
+                                embedding_dimension = model.get('embedding_dimension')
+                            elif 'dimensions' in model:
+                                embedding_dimension = model.get('dimensions')
+                            
+                            filtered_models.append({
+                                'id': model_id,
+                                'name': model_name,
+                                'description': model.get('description', ''),
+                                'context_length': model.get('context_length'),
+                                'pricing': pricing,
+                                'embedding_dimension': embedding_dimension
+                            })
+                    else:  # category == 'llm'
+                        # Check for chat/completion support (exclude embedding-only models)
+                        supports_chat = (
+                            'text' in modalities or
+                            'chat' in modalities or
+                            capabilities.get('chat', True)  # Default to True if not specified
+                        ) and not (
+                            'embeddings' in modalities and len(modalities) == 1  # Embedding-only
+                        )
+                        if supports_chat:
+                            filtered_models.append({
+                                'id': model_id,
+                                'name': model_name,
+                                'description': model.get('description', ''),
+                                'context_length': model.get('context_length'),
+                                'pricing': pricing
+                            })
+                
+                # Sort by name for better UX
+                filtered_models.sort(key=lambda x: x['name'].lower())
+                
+                return jsonify({
+                    "models": filtered_models,
+                    "provider_type": provider_type,
+                    "category": category
+                }), 200
+                
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Error fetching OpenRouter models: {e}")
+                return jsonify({
+                    "error": f"Failed to fetch models: {str(e)}",
+                    "models": []
+                }), 503
+            except Exception as e:
+                logger.error(f"Error processing OpenRouter models: {e}")
+                return jsonify({
+                    "error": f"Error processing models: {str(e)}",
+                    "models": []
+                }), 500
+        
+        # For other providers, return empty list (can be extended later)
+        else:
+            return jsonify({
+                "models": [],
+                "provider_type": provider_type,
+                "category": category,
+                "message": f"Model listing not yet supported for {provider_type}"
+            }), 200
+            
+    except Exception as e:
+        logger.error(f"Error getting provider models: {e}")
+        return jsonify({"error": f"Failed to get models: {str(e)}"}), 500
+
+
 @app.route('/settings/llm-providers/test', methods=['POST'])
 @requires_write_auth
 def test_llm_provider_endpoint():
@@ -999,10 +1144,136 @@ def test_llm_provider_endpoint():
         if config is None:
             return jsonify({"error": "Provider configuration is required"}), 400
         
+        # Normalize config - ensure model is a string if it's an object
+        # This handles cases where the frontend sends model as an object
+        if isinstance(config, dict) and 'model' in config:
+            model_value = config.get('model')
+            
+            # Check if model is the literal string "[object Object]" (JavaScript object conversion)
+            if isinstance(model_value, str) and (model_value == '[object Object]' or '[object Object]' in model_value):
+                logger.warning(f"Detected '[object Object]' string in model field, using default")
+                if provider_type == 'openrouter' and provider_category == 'embedding':
+                    config['model'] = 'openai/text-embedding-3-small'
+                else:
+                    config['model'] = None
+            elif isinstance(model_value, dict):
+                # Extract model string from object - try common fields
+                extracted = (model_value.get('id') or 
+                           model_value.get('name') or 
+                           model_value.get('model') or
+                           model_value.get('value') or
+                           None)
+                if extracted and isinstance(extracted, str) and extracted != '[object Object]':
+                    config['model'] = extracted
+                elif extracted and extracted != '[object Object]':
+                    config['model'] = str(extracted)
+                else:
+                    # Fallback: try to get first string value from dict
+                    found = False
+                    for key, val in model_value.items():
+                        if isinstance(val, str) and val and val != '[object Object]':
+                            config['model'] = val
+                            found = True
+                            break
+                    if not found:
+                        # Last resort: use default based on provider
+                        if provider_type == 'openrouter' and provider_category == 'embedding':
+                            config['model'] = 'openai/text-embedding-3-small'
+                        else:
+                            config['model'] = None
+            elif model_value is not None and not isinstance(model_value, str):
+                # Convert to string if not already, but check for object conversion
+                str_value = str(model_value)
+                if str_value == '[object Object]' or '[object Object]' in str_value:
+                    logger.warning(f"Model converted to '[object Object]', using default")
+                    if provider_type == 'openrouter' and provider_category == 'embedding':
+                        config['model'] = 'openai/text-embedding-3-small'
+                    else:
+                        config['model'] = None
+                else:
+                    config['model'] = str_value
+            # If model is None or empty string and it's openrouter, set default
+            elif provider_type == 'openrouter' and provider_category == 'embedding' and (not model_value or model_value == ''):
+                config['model'] = 'openai/text-embedding-3-small'
+        
+        # Log the entire config for debugging
+        logger.debug(f"Full config received: {config}")
+        logger.debug(f"Model value: {config.get('model')}, type: {type(config.get('model')).__name__}, repr: {repr(config.get('model'))}")
+        
         # Test provider connection based on category
         try:
             if provider_category == 'embedding':
                 # Test embedding provider
+                logger.debug(f"Testing embedding provider {provider_type} with config model: {config.get('model')} (type: {type(config.get('model')).__name__})")
+                # Force model to be a string one more time before passing to factory
+                if 'model' in config:
+                    model_val = config['model']
+                    if isinstance(model_val, str) and (model_val == '[object Object]' or '[object Object]' in model_val):
+                        logger.error(f"CRITICAL: Model is '[object Object]' string, replacing with default")
+                        config['model'] = 'openai/text-embedding-3-small' if provider_type == 'openrouter' else None
+                    elif not isinstance(model_val, str):
+                        logger.error(f"CRITICAL: Model is not a string: {type(model_val).__name__}, value: {model_val}")
+                        if isinstance(model_val, dict):
+                            config['model'] = model_val.get('id') or model_val.get('name') or model_val.get('model') or 'openai/text-embedding-3-small'
+                        else:
+                            config['model'] = str(model_val) if model_val != '[object Object]' else 'openai/text-embedding-3-small'
+                
+                logger.debug(f"Final model before factory: {config.get('model')} (type: {type(config.get('model')).__name__})")
+                
+                # For OpenRouter, validate that the model supports embeddings
+                if provider_type == 'openrouter' and config.get('model') and config.get('api_key'):
+                    model_name = str(config.get('model'))
+                    api_key = config.get('api_key')
+                    
+                    # Check if model supports embeddings by querying OpenRouter API
+                    try:
+                        headers = {
+                            'Authorization': f'Bearer {api_key}',
+                            'Content-Type': 'application/json'
+                        }
+                        response = requests.get('https://openrouter.ai/api/v1/models', headers=headers, timeout=10)
+                        
+                        if response.status_code == 200:
+                            models_data = response.json()
+                            all_models = models_data.get('data', [])
+                            
+                            # Find the model in the list
+                            model_info = None
+                            for m in all_models:
+                                if m.get('id') == model_name:
+                                    model_info = m
+                                    break
+                            
+                            if model_info:
+                                # Check if model supports embeddings - use strict check
+                                modalities = model_info.get('modalities', [])
+                                capabilities = model_info.get('capabilities', {})
+                                
+                                supports_embeddings = (
+                                    'embeddings' in modalities or
+                                    'embedding' in modalities or
+                                    capabilities.get('embeddings', False)
+                                ) or (
+                                    # Only allow models with 'embedding' in name if they're known embedding models
+                                    ('text-embedding' in model_name.lower() or 
+                                     model_name.lower().endswith('-embed') or
+                                     model_name.lower().startswith('embed-'))
+                                )
+                                
+                                if not supports_embeddings:
+                                    model_display_name = model_info.get('name', model_name)
+                                    return jsonify({
+                                        "success": False,
+                                        "message": f"Model '{model_display_name}' ({model_name}) does not support embeddings. This is a chat/completion model, not an embedding model. Please use an embedding model like 'openai/text-embedding-3-small' (note: OpenRouter has no free embedding models - you'll need to use Ollama for free embeddings).",
+                                        "error_type": "invalid_model"
+                                    }), 400
+                            else:
+                                # Model not found - might be invalid, but proceed with test
+                                logger.warning(f"Model '{model_name}' not found in OpenRouter models list, proceeding with test")
+                    except Exception as e:
+                        # If validation fails, log but don't block the test
+                        logger.warning(f"Could not validate model embedding support: {e}, proceeding with test")
+                
                 embedding = EmbeddingProviderFactory.get_embeddings(provider_type, config)
                 # Try to embed a simple test text
                 test_response = embedding.embed_query("test")

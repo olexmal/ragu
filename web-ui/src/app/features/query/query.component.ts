@@ -1,40 +1,48 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, signal, inject, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { finalize } from 'rxjs/operators';
-import { QueryService } from '../../core/services/query.service';
+import { ChatComponent } from './components/chat/chat.component';
+import { SettingsPanelComponent, QuerySettings } from './components/settings-panel/settings-panel.component';
+import { SourcesPanelComponent } from './components/sources-panel/sources-panel.component';
+import { ChatState } from '../../core/state/chat.state';
 import { CollectionService } from '../../core/services/collection.service';
-import { QueryState } from '../../core/state/query.state';
-import { QueryRequest } from '../../core/models/query.models';
-import { QueryResultsComponent } from './components/query-results/query-results.component';
-import { HelpIconComponent } from '../../shared/components/help-icon/help-icon.component';
 
 @Component({
   selector: 'app-query',
   standalone: true,
-  imports: [CommonModule, FormsModule, QueryResultsComponent, HelpIconComponent],
+  imports: [CommonModule, ChatComponent, SettingsPanelComponent, SourcesPanelComponent],
   templateUrl: './query.component.html',
   styleUrl: './query.component.scss'
 })
-export class QueryComponent {
-  private queryService = inject(QueryService);
+export class QueryComponent implements OnInit {
+  private chatState = inject(ChatState);
   private collectionService = inject(CollectionService);
-  queryState = inject(QueryState);
 
-  queryText = signal<string>('');
-  selectedVersion = signal<string | undefined>(undefined);
-  k = signal<number>(3);
-  useSimple = signal<boolean>(false);
+  showSettings = signal<boolean>(false);
+  showSources = signal<boolean>(false);
+  activeTab = signal<'settings' | 'sources'>('settings');
+
+  currentSources = signal<any[]>([]);
+  selectedSourceIndex = signal<number | null>(null);
   collections = signal<any[]>([]);
 
+  settings: QuerySettings = { k: 3, useSimple: false };
+
   constructor() {
+    // Watch for message changes to update sources
+    effect(() => {
+      this.chatState.messages(); // Track changes
+      this.updateSources();
+    });
+  }
+
+  ngOnInit(): void {
     this.loadCollections();
   }
 
   loadCollections(): void {
     this.collectionService.getCollections().subscribe({
       next: (response) => {
-        this.collections.set(response.collections);
+        this.collections.set(response.collections || []);
       },
       error: (error) => {
         console.error('Failed to load collections:', error);
@@ -42,45 +50,59 @@ export class QueryComponent {
     });
   }
 
-  onSubmit(): void {
-    // Prevent multiple submissions
-    if (this.queryState.loading()) {
-      return;
+  toggleSettings(): void {
+    if (this.showSettings()) {
+      this.showSettings.set(false);
+    } else {
+      this.showSettings.set(true);
+      this.showSources.set(false);
+      this.activeTab.set('settings');
     }
-
-    const query = this.queryText().trim();
-    if (!query) {
-      return;
-    }
-
-    this.queryState.setLoading(true);
-    this.queryState.setError(null);
-
-    const request: QueryRequest = {
-      query,
-      version: this.selectedVersion(),
-      k: this.k(),
-      simple: this.useSimple()
-    };
-
-    this.queryService.query(request).pipe(
-      finalize(() => {
-        // Ensure loading is always set to false when request completes
-        this.queryState.setLoading(false);
-      })
-    ).subscribe({
-      next: (response) => {
-        this.queryState.setQuery(response);
-      },
-      error: (error) => {
-        this.queryState.setError(error.message || 'Query failed');
-      }
-    });
   }
 
-  clearQuery(): void {
-    this.queryText.set('');
-    this.queryState.clear();
+  toggleSources(): void {
+    if (this.showSources()) {
+      this.showSources.set(false);
+    } else {
+      this.showSources.set(true);
+      this.showSettings.set(false);
+      this.activeTab.set('sources');
+    }
+  }
+
+  onSettingsChange(settings: QuerySettings): void {
+    this.settings = settings;
+  }
+
+  onClearHistory(): void {
+    this.chatState.clearMessages();
+  }
+
+  onExportConversation(): void {
+    const messages = this.chatState.messages();
+    const dataStr = JSON.stringify(messages, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `conversation-${new Date().toISOString()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // Update sources when messages change
+  updateSources(): void {
+    const messages = this.chatState.messages();
+    const lastAssistantMessage = [...messages].reverse().find(m => m.role === 'assistant' && m.sources);
+    if (lastAssistantMessage?.sources) {
+      this.currentSources.set(lastAssistantMessage.sources);
+    } else {
+      this.currentSources.set([]);
+    }
+  }
+
+  getVersions(): string[] {
+    return this.collections().map(c => c.name);
   }
 }
 

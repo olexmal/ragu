@@ -70,7 +70,7 @@ npm start
 1. Open `http://localhost:4200` in your browser
 2. Go to "Upload & Import"
 3. Upload a test document
-4. Go to "Query" and ask a question
+4. Go to "Chat Playground" and ask a question
 
 **Via API:**
 ```bash
@@ -133,11 +133,12 @@ curl -X POST http://localhost:8080/confluence/import \
 ### Query Documentation
 
 **Via Web UI:**
-1. Navigate to "Query" page
-2. Enter your question in the text area
-3. Optionally select a version
-4. Adjust "Documents to retrieve" (k value)
-5. Click "Query"
+1. Navigate to "Chat Playground" page
+2. Type your question in the chat input area
+3. Optionally select a version from the dropdown
+4. Adjust "Documents to retrieve" (k value) in the settings panel
+5. Press Enter or click the send button to submit your query
+6. View sources in the Sources panel (toggle button in toolbar)
 
 **Via API:**
 ```bash

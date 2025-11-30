@@ -421,6 +421,7 @@ export class SettingsComponent implements OnInit {
     return defaults[providerType] || '';
   }
 
+
   getProviderDisplayName(providerType: LLMProviderType): string {
     const names: { [key in LLMProviderType]: string } = {
       'ollama': 'Ollama',

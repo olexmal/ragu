@@ -35,9 +35,9 @@ RAG System is a powerful, privacy-focused documentation search and query platfor
 
 <div align="center">
 
-![Query Interface](docs/images/start_page.png)
+![Chat Playground](docs/images/start_page.png)
 
-*Query Documentation page - Ask questions about your documentation with natural language*
+*Chat Playground - Interactive chat interface for querying your documentation with natural language*
 
 ![Admin Dashboard](docs/images/admin_dashboard.png)
 
@@ -76,7 +76,8 @@ RAG System is a powerful, privacy-focused documentation search and query platfor
 
 - **⚙️ Configuration & Integration**
   - Multiple LLM provider support (Ollama, OpenAI, Anthropic, Azure, Google, OpenRouter)
-  - Configurable embedding providers
+  - Configurable embedding providers (Ollama, OpenRouter, OpenAI, Azure, Google)
+  - OpenRouter support for both LLM and embeddings (OpenAI-compatible API)
   - Confluence integration settings
   - System settings management
   - Optional API authentication
@@ -91,7 +92,7 @@ RAG System is a powerful, privacy-focused documentation search and query platfor
   - Error handling with clear messages
 
 - **📱 Pages**
-  - **Query** - Ask questions about your documentation
+  - **Chat Playground** - Interactive chat interface for querying documentation
   - **History** - View and rerun previous queries
   - **Dashboard** - System overview and quick actions
   - **Upload & Import** - Document upload and Confluence import

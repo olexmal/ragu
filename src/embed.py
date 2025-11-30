@@ -552,19 +552,27 @@ def import_confluence_page_to_vector_db(page_id: str, version: str = None, overw
                     capture_output=True,
                     text=True,
                     timeout=300,  # 5 minute timeout
-                    check=True
+                    check=False  # Don't raise exception, check returncode manually
                 )
-                logger.debug(f"confluence-markdown-exporter output: {result.stdout}")
-                break  # Success, exit the loop
+                if result.returncode == 0:
+                    logger.debug(f"confluence-markdown-exporter output: {result.stdout}")
+                    break  # Success, exit the loop
+                else:
+                    # Command failed, extract error message from result
+                    error_msg = result.stderr or result.stdout or f"Command failed with return code {result.returncode}"
+                    last_error = error_msg
+                    logger.debug(f"Command format failed: {cmd}, error: {error_msg}")
+                    continue  # Try next format
             except subprocess.TimeoutExpired as e:
                 error_msg = f"Timeout while exporting Confluence page {page_id}. The operation took longer than 5 minutes."
                 last_error = error_msg
                 logger.debug(f"Command format timed out: {cmd}, error: {error_msg}")
                 continue  # Try next format
-            except subprocess.CalledProcessError as e:
-                error_msg = e.stderr or e.stdout or "Unknown error"
+            except Exception as e:
+                # Catch any other exceptions (file not found, etc.)
+                error_msg = str(e)
                 last_error = error_msg
-                logger.debug(f"Command format failed: {cmd}, error: {error_msg}")
+                logger.debug(f"Command format error: {cmd}, error: {error_msg}")
                 continue  # Try next format
         else:
             # All formats failed

@@ -57,9 +57,14 @@ web-ui/src/app/
 │   │   ├── collections/   # Collections management
 │   │   ├── monitoring/    # Monitoring & analytics
 │   │   └── settings/      # Settings management
-│   ├── query/             # Query interface
+│   ├── query/             # Chat Playground interface
 │   │   ├── components/
-│   │   │   ├── query-results/    # Query results display
+│   │   │   ├── chat/             # Chat interface components
+│   │   │   │   ├── chat.component.ts          # Main chat container
+│   │   │   │   ├── chat-message.component.ts # Individual message display
+│   │   │   │   └── chat-input.component.ts   # Message input with options
+│   │   │   ├── settings-panel/   # Query settings panel
+│   │   │   ├── sources-panel/    # Source documents panel
 │   │   │   └── query-history/    # Query history
 │   │   └── query.component.ts
 │   └── auth/              # Authentication
@@ -72,8 +77,8 @@ web-ui/src/app/
 │   │   ├── collection.service.ts
 │   │   └── settings.service.ts
 │   ├── state/             # State management (signals)
-│   │   ├── query.state.ts
-│   │   └── ui.state.ts
+│   │   ├── chat.state.ts  # Chat message state
+│   │   └── ui.state.ts    # UI state (sidebar, etc.)
 │   └── models/             # Data models
 ├── layout/                 # Layout components
 │   ├── header/            # Header component
@@ -223,7 +228,52 @@ Confluence settings are managed via the Settings API or web UI:
 - Username/Email
 - API Token
 
-### 6. Monitoring Module (`monitoring.py`)
+### 6. LLM & Embedding Providers (`llm_providers.py`)
+
+**Purpose**: Provides abstraction layer for different LLM and embedding providers.
+
+**Supported LLM Providers**:
+- **Ollama** - Local LLM models (default)
+- **OpenRouter** - Unified API for various LLMs (requires API key)
+- **OpenAI** - GPT models (requires API key)
+- **Anthropic** - Claude models (requires API key)
+- **Azure OpenAI** - Azure-hosted OpenAI models (requires API key)
+- **Google** - Gemini models (requires API key)
+
+**Supported Embedding Providers**:
+- **Ollama** - Local embedding models (e.g., `nomic-embed-text`, 768 dimensions)
+- **OpenRouter** - OpenAI-compatible embeddings (e.g., `openai/text-embedding-3-small`, 1536 dimensions)
+- **OpenAI** - OpenAI embeddings (requires API key)
+- **Azure OpenAI** - Azure-hosted OpenAI embeddings (requires API key)
+- **Google** - Google embeddings (requires API key)
+
+**Usage**:
+```python
+from src.llm_providers import LLMProviderFactory, EmbeddingProviderFactory
+
+# Create LLM instance
+llm_config = {
+    "type": "openrouter",
+    "model": "tngtech/tng-r1t-chimera:free",
+    "api_key": "your-api-key"
+}
+llm = LLMProviderFactory.get_llm("openrouter", llm_config)
+
+# Create embedding instance
+embedding_config = {
+    "type": "ollama",
+    "model": "nomic-embed-text",
+    "base_url": "http://localhost:11434"
+}
+embeddings = EmbeddingProviderFactory.get_embeddings("ollama", embedding_config)
+```
+
+**Important Notes**:
+- **Embedding Dimensions**: Different embedding models produce different dimensions (e.g., Ollama's `nomic-embed-text` = 768, OpenAI's `text-embedding-3-small` = 1536). All documents in a collection must use the same embedding dimension.
+- **OpenRouter Embeddings**: OpenRouter uses OpenAI-compatible API. For free embeddings, use Ollama with `nomic-embed-text`. OpenRouter embedding models are paid.
+- **Model Configuration**: Models are configured via the Settings UI or API. The model name must be entered as a string (e.g., `openai/text-embedding-3-small`).
+
+### 7. Monitoring Module (`monitoring.py`)
 
 **Purpose**: Tracks query patterns and embedding operations.
 
@@ -462,8 +512,12 @@ python3 -c "from src.cache import get_cache; print(get_cache().stats())"
 - **Debug**: Check monitoring stats for response times
 
 **Issue**: Embedding fails
-- **Solution**: Check file format support, verify Ollama models
+- **Solution**: Check file format support, verify embedding provider models
 - **Debug**: Check logs in `ragu.log`
+
+**Issue**: Embedding dimension mismatch
+- **Solution**: Ensure all documents in a collection use the same embedding model. If switching models, re-embed all documents.
+- **Debug**: Check collection metadata for embedding dimension
 
 **Issue**: Cache not working
 - **Solution**: Verify `USE_CACHE=true` in `.env`
