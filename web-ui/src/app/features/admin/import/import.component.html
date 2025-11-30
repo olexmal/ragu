@@ -143,8 +143,8 @@
             </div>
             <p class="text-sm text-green-600">
               Scraped {{ scrapeResult()?.results?.success || 0 }} pages.
-              @if (scrapeResult()?.results?.failed > 0) {
-                Failed: {{ scrapeResult()?.results?.failed }}
+              @if (scrapeResult()?.results && scrapeResult()!.results.failed > 0) {
+                Failed: {{ scrapeResult()!.results.failed }}
               }
             </p>
           </div>

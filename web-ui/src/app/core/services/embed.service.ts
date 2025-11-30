@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ApiService } from './api.service';
-import { EmbedResponse, BatchEmbedResponse } from '../models/document.models';
+import { EmbedResponse, BatchEmbedResponse, ScrapeEmbedResponse } from '../models/document.models';
 
 @Injectable({
   providedIn: 'root'
@@ -42,7 +42,7 @@ export class EmbedService extends ApiService {
     return this.post<EmbedResponse>('/confluence/import', body);
   }
 
-  scrapeAndEmbedUrl(url: string, version?: string, maxDepth: number = 3, overwrite: boolean = false): Observable<BatchEmbedResponse> {
+  scrapeAndEmbedUrl(url: string, version?: string, maxDepth: number = 3, overwrite: boolean = false): Observable<ScrapeEmbedResponse> {
     const body: any = {
       url,
       max_depth: maxDepth,
@@ -52,6 +52,6 @@ export class EmbedService extends ApiService {
       body.version = version;
     }
 
-    return this.post<BatchEmbedResponse>('/embed-url', body);
+    return this.post<ScrapeEmbedResponse>('/embed-url', body);
   }
 }

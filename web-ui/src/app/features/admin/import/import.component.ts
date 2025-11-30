@@ -2,7 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { EmbedService } from '../../../core/services/embed.service';
-import { EmbedResponse, BatchEmbedResponse } from '../../../core/models/document.models';
+import { EmbedResponse, BatchEmbedResponse, ScrapeEmbedResponse } from '../../../core/models/document.models';
 import { HelpIconComponent } from '../../../shared/components/help-icon/help-icon.component';
 
 @Component({
@@ -40,7 +40,7 @@ export class ImportComponent {
   scrapeMaxDepth = signal<number>(3);
   scrapeOverwrite = signal<boolean>(false);
   scraping = signal<boolean>(false);
-  scrapeResult = signal<BatchEmbedResponse | null>(null);
+  scrapeResult = signal<ScrapeEmbedResponse | null>(null);
   scrapeError = signal<string>('');
 
   setActiveTab(tabId: string): void {
@@ -173,7 +173,7 @@ export class ImportComponent {
       this.scrapeMaxDepth(),
       this.scrapeOverwrite()
     ).subscribe({
-      next: (result: BatchEmbedResponse) => {
+      next: (result: ScrapeEmbedResponse) => {
         this.scrapeResult.set(result);
         this.scraping.set(false);
         this.scrapeUrl.set('');

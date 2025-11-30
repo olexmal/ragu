@@ -29,3 +29,20 @@ export interface EmbedResult {
   error?: string;
 }
 
+export interface ScrapePageResult {
+  url: string;
+  title: string;
+  status: 'success' | 'failed';
+}
+
+export interface ScrapeEmbedResponse {
+  message: string;
+  results: {
+    success: number;
+    failed: number;
+    errors: Array<{ url: string; error: string }>;
+    pages: ScrapePageResult[];
+  };
+  version?: string;
+}
+
