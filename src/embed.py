@@ -620,3 +620,105 @@ def import_confluence_page_to_vector_db(page_id: str, version: str = None, overw
             except Exception as e:
                 logger.warning(f"Failed to clean up temporary file {temp_file}: {e}")
 
+
+def embed_url(url: str, collection_name: str = None, version: str = None, overwrite: bool = False, max_depth: int = 3) -> Dict[str, Any]:
+    """
+    Embed content from a URL (and optionally crawl the site).
+    
+    Args:
+        url: Starting URL
+        collection_name: Collection name
+        version: Version string
+        overwrite: Overwrite existing collection
+        max_depth: Max crawl depth
+        
+    Returns:
+        dict: Summary of embedding
+    """
+    from .web_scraper import WebScraper
+    import tempfile
+    import os
+    
+    scraper = WebScraper(max_depth=max_depth)
+    scraped_pages = scraper.scrape_url(url)
+    
+    if not scraped_pages:
+        raise ValueError(f"No content found at {url}")
+        
+    results = {
+        'success': 0,
+        'failed': 0,
+        'errors': [],
+        'pages': []
+    }
+    
+    # Process each scraped page
+    # If overwrite is True, we only want to trigger it for the FIRST successful embedding
+    # Subsequent pages should append (overwrite=False)
+    first_success = False
+    
+    for i, page in enumerate(scraped_pages):
+        temp_fd = None
+        temp_file = None
+        try:
+            # Create temporary file for content
+            # Sanitize title for filename
+            safe_title = "".join(c for c in page['title'] if c.isalnum() or c in (' ', '-', '_')).strip()
+            safe_title = safe_title.replace(' ', '_')[:50]
+            if not safe_title:
+                safe_title = "page"
+            
+            temp_fd, temp_path = tempfile.mkstemp(suffix='.txt', prefix=f"web_{safe_title}_", text=True)
+            temp_file = Path(temp_path)
+            
+            # Write content to file
+            with os.fdopen(temp_fd, 'w', encoding='utf-8') as f:
+                f.write(f"Title: {page['title']}\nURL: {page['url']}\n\n")
+                f.write(page['content'])
+            
+            temp_fd = None # ownership transferred to with block
+            
+            # Determine overwrite setting for this file
+            current_overwrite = False
+            if overwrite and not first_success:
+                current_overwrite = True
+            
+            embed_file(
+                str(temp_file),
+                collection_name=collection_name,
+                version=version,
+                overwrite=current_overwrite
+            )
+            
+            # If this was successful and we overwrote, mark that we've handled the overwrite
+            if current_overwrite:
+                first_success = True
+            elif not first_success and i == 0:
+                # First page succeeded without overwrite (maybe overwrite was False)
+                first_success = True
+            
+            results['success'] += 1
+            results['pages'].append({'url': page['url'], 'title': page['title'], 'status': 'success'})
+            
+        except Exception as e:
+            logger.error(f"Failed to embed URL {page['url']}: {e}")
+            results['failed'] += 1
+            results['errors'].append({'url': page['url'], 'error': str(e)})
+            results['pages'].append({'url': page['url'], 'title': page['title'], 'status': 'failed'})
+            
+        finally:
+            # Close file descriptor if still open
+            if temp_fd is not None:
+                try:
+                    os.close(temp_fd)
+                except:
+                    pass
+                    
+            if temp_file and temp_file.exists():
+                try:
+                    temp_file.unlink()
+                except Exception as e:
+                    logger.warning(f"Failed to clean up temporary file {temp_file}: {e}")
+
+    return results
+

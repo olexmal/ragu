@@ -13,7 +13,7 @@ import requests
 
 # Handle imports for both module and standalone execution
 if __name__ == '__main__':
-    from embed import embed_file, embed_directory, embed_confluence_page, embed_confluence_pages, import_confluence_page_to_vector_db
+    from embed import embed_file, embed_directory, embed_confluence_page, embed_confluence_pages, import_confluence_page_to_vector_db, embed_url
     from query import query_docs, query_simple
     from utils import setup_logging
     from settings import get_confluence_settings, save_confluence_settings, get_system_settings, save_system_settings, get_llm_providers, save_llm_providers, get_active_llm_provider, get_active_embedding_provider
@@ -26,7 +26,7 @@ if __name__ == '__main__':
     requires_auth = lambda f: f  # No-op decorator
     requires_write_auth = lambda f: f
 else:
-    from .embed import embed_file, embed_directory, embed_confluence_page, embed_confluence_pages, import_confluence_page_to_vector_db
+    from .embed import embed_file, embed_directory, embed_confluence_page, embed_confluence_pages, import_confluence_page_to_vector_db, embed_url
     from .query import query_docs, query_simple
     from .multi_version_query import query_multiple_versions, compare_versions
     from .query_history import get_query_history
@@ -205,6 +205,41 @@ def embed_batch():
     except Exception as e:
         logger.error(f"Batch embedding failed: {e}")
         return jsonify({"error": f"Batch embedding failed: {str(e)}"}), 500
+
+
+@app.route('/embed-url', methods=['POST'])
+@requires_write_auth
+def embed_url_endpoint():
+    """Embed content from a URL."""
+    data = request.get_json() or request.form
+    
+    url = data.get('url')
+    version = data.get('version')
+    overwrite = str(data.get('overwrite', 'false')).lower() == 'true'
+    max_depth = int(data.get('max_depth', 3))
+    
+    if not url:
+        return jsonify({"error": "URL is required"}), 400
+        
+    try:
+        results = embed_url(
+            url,
+            version=version,
+            overwrite=overwrite,
+            max_depth=max_depth
+        )
+        
+        return jsonify({
+            "message": "URL scraping and embedding completed",
+            "results": results,
+            "version": version
+        }), 200
+        
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logger.error(f"URL embedding failed: {e}")
+        return jsonify({"error": f"URL embedding failed: {str(e)}"}), 500
 
 
 @app.route('/query', methods=['POST'])

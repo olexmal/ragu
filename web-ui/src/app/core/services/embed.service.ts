@@ -41,5 +41,17 @@ export class EmbedService extends ApiService {
 
     return this.post<EmbedResponse>('/confluence/import', body);
   }
-}
 
+  scrapeAndEmbedUrl(url: string, version?: string, maxDepth: number = 3, overwrite: boolean = false): Observable<BatchEmbedResponse> {
+    const body: any = {
+      url,
+      max_depth: maxDepth,
+      overwrite
+    };
+    if (version) {
+      body.version = version;
+    }
+
+    return this.post<BatchEmbedResponse>('/embed-url', body);
+  }
+}

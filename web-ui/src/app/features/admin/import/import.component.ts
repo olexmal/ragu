@@ -2,7 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { EmbedService } from '../../../core/services/embed.service';
-import { EmbedResponse } from '../../../core/models/document.models';
+import { EmbedResponse, BatchEmbedResponse } from '../../../core/models/document.models';
 import { HelpIconComponent } from '../../../shared/components/help-icon/help-icon.component';
 
 @Component({
@@ -33,6 +33,15 @@ export class ImportComponent {
   importing = signal<boolean>(false);
   importResult = signal<EmbedResponse | null>(null);
   importError = signal<string>('');
+
+  // Web Scraping tab state
+  scrapeUrl = signal<string>('');
+  scrapeVersion = signal<string>('');
+  scrapeMaxDepth = signal<number>(3);
+  scrapeOverwrite = signal<boolean>(false);
+  scraping = signal<boolean>(false);
+  scrapeResult = signal<BatchEmbedResponse | null>(null);
+  scrapeError = signal<string>('');
 
   setActiveTab(tabId: string): void {
     this.activeTab.set(tabId);
@@ -136,6 +145,49 @@ export class ImportComponent {
   clearImportResult(): void {
     this.importResult.set(null);
     this.confluencePageId.set('');
+  }
+
+  // Web Scraping methods
+  onScrapeUrl(): void {
+    const url = this.scrapeUrl().trim();
+    if (!url) {
+      this.scrapeError.set('Please enter a valid URL');
+      return;
+    }
+
+    // Basic URL validation
+    try {
+      new URL(url);
+    } catch {
+      this.scrapeError.set('Please enter a valid URL (including http:// or https://)');
+      return;
+    }
+
+    this.scraping.set(true);
+    this.scrapeError.set('');
+    this.scrapeResult.set(null);
+
+    this.embedService.scrapeAndEmbedUrl(
+      url,
+      this.scrapeVersion() || undefined,
+      this.scrapeMaxDepth(),
+      this.scrapeOverwrite()
+    ).subscribe({
+      next: (result: BatchEmbedResponse) => {
+        this.scrapeResult.set(result);
+        this.scraping.set(false);
+        this.scrapeUrl.set('');
+      },
+      error: (error: any) => {
+        this.scrapeError.set(error.error?.error || error.message || 'Scraping failed');
+        this.scraping.set(false);
+      }
+    });
+  }
+
+  clearScrapeResult(): void {
+    this.scrapeResult.set(null);
+    this.scrapeUrl.set('');
   }
 }
 

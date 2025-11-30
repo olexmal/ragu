@@ -58,6 +58,7 @@ RAG System is a powerful, privacy-focused documentation search and query platfor
 - **📤 Document Upload & Import**
   - Upload multiple file formats (PDF, HTML, TXT, Markdown)
   - Import Confluence pages via page ID or URL
+  - **Web Scraping**: Crawl and embed entire documentation sites
   - Batch processing for multiple files
   - Incremental updates without data loss
 
