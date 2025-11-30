@@ -8,41 +8,50 @@ import { EmbedResponse, BatchEmbedResponse, ScrapeEmbedResponse } from '../model
   providedIn: 'root'
 })
 export class EmbedService extends ApiService {
-  embedFile(file: File, version?: string, overwrite: boolean = false): Observable<EmbedResponse> {
+  embedFile(file: File, version?: string, collectionName?: string, overwrite: boolean = false): Observable<EmbedResponse> {
     const formData = new FormData();
     formData.append('file', file);
     if (version) {
       formData.append('version', version);
+    }
+    if (collectionName) {
+      formData.append('collection_name', collectionName);
     }
     formData.append('overwrite', overwrite.toString());
 
     return this.postFormData<EmbedResponse>('/embed', formData);
   }
 
-  embedDirectory(directory: string, version?: string, overwrite: boolean = false): Observable<BatchEmbedResponse> {
+  embedDirectory(directory: string, version?: string, collectionName?: string, overwrite: boolean = false): Observable<BatchEmbedResponse> {
     const formData = new FormData();
     formData.append('directory', directory);
     if (version) {
       formData.append('version', version);
+    }
+    if (collectionName) {
+      formData.append('collection_name', collectionName);
     }
     formData.append('overwrite', overwrite.toString());
 
     return this.postFormData<BatchEmbedResponse>('/embed-batch', formData);
   }
 
-  importConfluencePage(pageId: string, version?: string, overwrite: boolean = false): Observable<EmbedResponse> {
+  importConfluencePage(pageId: string, version?: string, collectionName?: string, overwrite: boolean = false): Observable<EmbedResponse> {
     const body: any = {
       page_id: pageId
     };
     if (version) {
       body.version = version;
     }
+    if (collectionName) {
+      body.collection_name = collectionName;
+    }
     body.overwrite = overwrite;
 
     return this.post<EmbedResponse>('/confluence/import', body);
   }
 
-  scrapeAndEmbedUrl(url: string, version?: string, maxDepth: number = 3, overwrite: boolean = false): Observable<ScrapeEmbedResponse> {
+  scrapeAndEmbedUrl(url: string, version?: string, collectionName?: string, maxDepth: number = 3, overwrite: boolean = false): Observable<ScrapeEmbedResponse> {
     const body: any = {
       url,
       max_depth: maxDepth,
@@ -50,6 +59,9 @@ export class EmbedService extends ApiService {
     };
     if (version) {
       body.version = version;
+    }
+    if (collectionName) {
+      body.collection_name = collectionName;
     }
 
     return this.post<ScrapeEmbedResponse>('/embed-url', body);

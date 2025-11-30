@@ -387,7 +387,7 @@ def embed_confluence_pages(page_ids: list, confluence_config: Dict[str, Any],
     return results
 
 
-def import_confluence_page_to_vector_db(page_id: str, version: str = None, overwrite: bool = False) -> Dict[str, Any]:
+def import_confluence_page_to_vector_db(page_id: str, collection_name: str = None, version: str = None, overwrite: bool = False) -> Dict[str, Any]:
     """
     Import a Confluence page to vector database using confluence-markdown-exporter.
     
@@ -400,6 +400,7 @@ def import_confluence_page_to_vector_db(page_id: str, version: str = None, overw
     
     Args:
         page_id: Confluence page ID or URL (URLs will have page ID extracted)
+        collection_name: Optional collection name (defaults to COLLECTION_NAME)
         version: Optional version string for collection naming
         overwrite: If True, delete existing collection before embedding
         
@@ -586,7 +587,7 @@ def import_confluence_page_to_vector_db(page_id: str, version: str = None, overw
         # Embed the Markdown file
         embed_file(
             str(temp_file),
-            collection_name=None,
+            collection_name=collection_name,
             version=version,
             overwrite=overwrite
         )

@@ -123,6 +123,7 @@ def embed():
         return jsonify({"error": "No file selected"}), 400
     
     version = request.form.get('version')  # Optional version parameter
+    collection_name = request.form.get('collection_name')  # Optional collection name parameter
     overwrite = request.form.get('overwrite', 'false').lower() == 'true'
     
     # SECURITY: Sanitize filename to prevent path traversal attacks
@@ -151,10 +152,11 @@ def embed():
     
     try:
         # Embed with version support and incremental update capability
-        embed_file(str(file_path), version=version, overwrite=overwrite)
+        embed_file(str(file_path), collection_name=collection_name, version=version, overwrite=overwrite)
         return jsonify({
             "message": "File embedded successfully",
             "version": version,
+            "collection_name": collection_name,
             "mode": "overwrite" if overwrite else "incremental",
             "filename": safe_filename
         }), 200
@@ -180,6 +182,7 @@ def embed_batch():
     
     directory_path = request.form.get('directory')
     version = request.form.get('version')
+    collection_name = request.form.get('collection_name')  # Optional collection name parameter
     overwrite = request.form.get('overwrite', 'false').lower() == 'true'
     
     # SECURITY: Validate directory path
@@ -194,13 +197,15 @@ def embed_batch():
     try:
         results = embed_directory(
             str(directory_path),
+            collection_name=collection_name,
             version=version,
             overwrite=overwrite
         )
         return jsonify({
             "message": "Batch embedding completed",
             "results": results,
-            "version": version
+            "version": version,
+            "collection_name": collection_name
         }), 200
     except Exception as e:
         logger.error(f"Batch embedding failed: {e}")
@@ -215,6 +220,7 @@ def embed_url_endpoint():
     
     url = data.get('url')
     version = data.get('version')
+    collection_name = data.get('collection_name')  # Optional collection name parameter
     overwrite = str(data.get('overwrite', 'false')).lower() == 'true'
     max_depth = int(data.get('max_depth', 3))
     
@@ -224,6 +230,7 @@ def embed_url_endpoint():
     try:
         results = embed_url(
             url,
+            collection_name=collection_name,
             version=version,
             overwrite=overwrite,
             max_depth=max_depth
@@ -232,7 +239,8 @@ def embed_url_endpoint():
         return jsonify({
             "message": "URL scraping and embedding completed",
             "results": results,
-            "version": version
+            "version": version,
+            "collection_name": collection_name
         }), 200
         
     except ValueError as e:
@@ -1468,6 +1476,7 @@ def import_confluence_page():
             return jsonify({"error": "page_id is required and must be a string"}), 400
         
         version = data.get('version')
+        collection_name = data.get('collection_name')  # Optional collection name parameter
         # Convert overwrite to boolean, handling string values "true"/"false" and boolean values
         overwrite_value = data.get('overwrite', False)
         if isinstance(overwrite_value, str):
@@ -1478,6 +1487,7 @@ def import_confluence_page():
         # Import the page
         result = import_confluence_page_to_vector_db(
             page_id=page_id,
+            collection_name=collection_name,
             version=version,
             overwrite=overwrite
         )
