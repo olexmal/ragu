@@ -1,6 +1,6 @@
 # API Reference
 
-Complete reference for all RAG System API endpoints.
+Complete reference for all RAGU (Retrieval-Augmented Generation Universal) API endpoints.
 
 ## Base URL
 

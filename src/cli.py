@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Command-Line Interface for RAG System
+Command-Line Interface for RAGU (Retrieval-Augmented Generation Universal)
 """
 import argparse
 import sys
@@ -126,7 +126,7 @@ def cmd_list_collections(args):
 
 def cmd_status(args):
     """Show system status."""
-    print("RAG System Status")
+    print("RAGU (Retrieval-Augmented Generation Universal) Status")
     print("=" * 80)
     
     # Check Ollama
@@ -201,7 +201,7 @@ def cmd_delete_collection(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='RAG System CLI')
+    parser = argparse.ArgumentParser(description='RAGU (Retrieval-Augmented Generation Universal) CLI')
     subparsers = parser.add_subparsers(dest='command', help='Command to execute')
     
     # Embed command

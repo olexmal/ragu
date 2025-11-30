@@ -931,7 +931,7 @@ def get_system_settings_endpoint():
     try:
         settings = get_system_settings()
         # Convert snake_case to camelCase for frontend
-        return jsonify({"systemName": settings.get("system_name", "RAG System")}), 200
+        return jsonify({"systemName": settings.get("system_name", "RAGU")}), 200
     except Exception as e:
         logger.error(f"Failed to get system settings: {e}")
         return jsonify({"error": f"Failed to get settings: {str(e)}"}), 500

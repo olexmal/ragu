@@ -1,6 +1,6 @@
-# RAG System Web UI
+# RAGU Web UI
 
-Modern Angular web interface for the RAG System.
+Modern Angular web interface for RAGU (Retrieval-Augmented Generation Universal).
 
 ## 🚀 Quick Start
 

@@ -8,7 +8,7 @@ import { SystemSettings } from '../models/settings.models';
 export class SystemNameService {
   private settingsService = inject(SettingsService);
   
-  systemName = signal<string>('RAG System');
+  systemName = signal<string>('RAGU');
 
   constructor() {
     this.loadSystemName();
@@ -18,11 +18,11 @@ export class SystemNameService {
     // Try to load from settings, fallback to default
     this.settingsService.getSystemSettings().subscribe({
       next: (settings) => {
-        this.systemName.set(settings.systemName || 'RAG System');
+        this.systemName.set(settings.systemName || 'RAGU');
       },
       error: () => {
         // Use default if loading fails
-        this.systemName.set('RAG System');
+        this.systemName.set('RAGU');
       }
     });
   }

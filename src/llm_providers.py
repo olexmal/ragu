@@ -86,7 +86,7 @@ class LLMProviderFactory:
             temperature=temperature,
             default_headers={
                 "HTTP-Referer": config.get('http_referer', ''),
-                "X-Title": config.get('app_name', 'RAG System')
+                "X-Title": config.get('app_name', 'RAGU')
             }
         )
     

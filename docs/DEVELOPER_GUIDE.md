@@ -1,8 +1,10 @@
-# RAG System Developer Guide
+# RAGU Developer Guide
+
+## Overview
+
+RAGU (Retrieval-Augmented Generation Universal) is built with a modular architecture that separates concerns into distinct components:
 
 ## Architecture Overview
-
-The RAG system is built with a modular architecture that separates concerns into distinct components:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐

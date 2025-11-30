@@ -32,7 +32,7 @@ export class SettingsComponent implements OnInit {
   });
 
   systemSettings = signal<SystemSettings>({
-    systemName: 'RAG System'
+    systemName: 'RAGU'
   });
 
   loading = signal<boolean>(false);
@@ -104,13 +104,13 @@ export class SettingsComponent implements OnInit {
     this.settingsService.getSystemSettings().subscribe({
       next: (settings: SystemSettings) => {
         this.systemSettings.set({
-          systemName: settings.systemName || 'RAG System'
+          systemName: settings.systemName || 'RAGU'
         });
       },
       error: (err: any) => {
         console.error('Failed to load system settings:', err);
         // Use default if loading fails
-        this.systemSettings.set({ systemName: 'RAG System' });
+        this.systemSettings.set({ systemName: 'RAGU' });
       }
     });
   }

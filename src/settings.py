@@ -100,7 +100,7 @@ def get_system_settings() -> Dict[str, Any]:
         dict: System settings with default values if file doesn't exist
     """
     default_settings = {
-        "system_name": "RAG System"
+        "system_name": "RAGU"
     }
     
     if not SYSTEM_SETTINGS_FILE.exists():
@@ -133,7 +133,7 @@ def save_system_settings(settings: Dict[str, Any]) -> bool:
         
         # Ensure all required keys are present
         default_settings = {
-            "system_name": "RAG System"
+            "system_name": "RAGU"
         }
         
         # Merge with defaults to ensure all keys exist

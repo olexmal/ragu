@@ -1,4 +1,4 @@
 """
-Test suite for RAG System
+Test suite for RAGU (Retrieval-Augmented Generation Universal)
 """
 

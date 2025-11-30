@@ -1,6 +1,6 @@
 # 🚀 Quick Start Guide
 
-Get your RAG system up and running in 5 minutes!
+Get RAGU (Retrieval-Augmented Generation Universal) up and running in 5 minutes!
 
 ---
 

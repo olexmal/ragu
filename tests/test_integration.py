@@ -1,5 +1,5 @@
 """
-Integration tests for RAG system
+Integration tests for RAGU (Retrieval-Augmented Generation Universal)
 """
 import pytest
 import os

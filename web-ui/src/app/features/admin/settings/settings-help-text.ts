@@ -3,7 +3,7 @@
  */
 export const SETTINGS_HELP_TEXT: { [section: string]: { [field: string]: string } } = {
   system: {
-    systemName: 'The name displayed throughout the application in the header, footer, and login page. This helps personalize your RAG system.'
+    systemName: 'The name displayed throughout the application in the header, footer, and login page. This helps personalize your RAGU instance.'
   },
   confluence: {
     url: 'Your Confluence instance URL. For Cloud: https://your-domain.atlassian.net. For Server: https://confluence.example.com',

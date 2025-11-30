@@ -1,8 +1,8 @@
-# 🚀 RAG System
+# 🚀 RAGU - Retrieval-Augmented Generation Universal
 
 <div align="center">
 
-**A modern, local Retrieval-Augmented Generation (RAG) application with a beautiful web interface**
+**RAGU (Retrieval-Augmented Generation Universal) - A modern, local RAG application with a beautiful web interface**
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![Angular](https://img.shields.io/badge/Angular-19+-red.svg)](https://angular.io/)
@@ -17,7 +17,7 @@
 
 ## ✨ Overview
 
-RAG System is a powerful, privacy-focused documentation search and query platform that enables semantic search across your documentation using local AI models. With a modern Angular web interface, you can upload documents, import from Confluence, query your knowledge base, and manage collections—all while keeping your data completely local.
+RAGU (Retrieval-Augmented Generation Universal) is a powerful, privacy-focused documentation search and query platform that enables semantic search across your documentation using local AI models. With a modern Angular web interface, you can upload documents, import from Confluence, query your knowledge base, and manage collections—all while keeping your data completely local.
 
 ### 🎯 Key Highlights
 

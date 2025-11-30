@@ -9,7 +9,7 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 cd "$PROJECT_DIR"
 
-echo "Running RAG System Tests"
+echo "Running RAGU Tests"
 echo "======================"
 
 # Activate virtual environment if it exists
