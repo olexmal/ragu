@@ -159,6 +159,131 @@ curl -X POST http://localhost:8080/confluence/import \
 
 **Note:** Confluence settings must be configured in Settings before importing pages. The system uses `confluence-markdown-exporter` to convert Confluence pages to Markdown before embedding.
 
+#### `POST /embed-url`
+
+Start a background job to scrape and embed content from a URL. This endpoint uses Celery for asynchronous processing.
+
+**Authentication:** Required if `AUTH_REQUIRED_FOR=write` or `all`
+
+**Rate Limit:** 10 requests per minute
+
+**Content-Type:** `application/json`
+
+**Request Body:**
+```json
+{
+  "url": "https://docs.example.com",
+  "collection_name": "Angular",
+  "version": "v19",
+  "max_depth": 3,
+  "overwrite": false
+}
+```
+
+**Parameters:**
+- `url` (required): Starting URL to scrape
+- `collection_name` (optional): Base name for the collection (e.g., 'Angular', 'React')
+- `version` (optional): Version string (e.g., 'v19', '2.0')
+- `max_depth` (optional): Maximum crawl depth (default: 3)
+- `overwrite` (optional): If `true`, replace existing collection (default: `false`)
+
+**Response (202 Accepted):**
+```json
+{
+  "message": "URL scraping and embedding job started",
+  "task_id": "abc123-def456-...",
+  "status_url": "/embed-url/status/abc123-def456-..."
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:8080/embed-url \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://v19.angular.dev",
+    "collection_name": "Angular",
+    "version": "v19",
+    "max_depth": 2
+  }'
+```
+
+#### `GET /embed-url/status/<task_id>`
+
+Get the status of a scraping task.
+
+**Response (Task in Progress):**
+```json
+{
+  "state": "PROGRESS",
+  "status": "Embedding page 5/20: Getting Started",
+  "progress": 35,
+  "url": "https://docs.example.com/getting-started"
+}
+```
+
+**Response (Task Completed):**
+```json
+{
+  "state": "SUCCESS",
+  "status": "completed",
+  "result": {
+    "success": 20,
+    "failed": 0,
+    "errors": [],
+    "pages": [...]
+  }
+}
+```
+
+**Task States:**
+- `PENDING` - Task is waiting to be processed
+- `PROGRESS` - Task is currently running
+- `SUCCESS` - Task completed successfully
+- `FAILURE` - Task failed
+- `REVOKED` - Task was cancelled
+
+#### `GET /embed-url/stream/<task_id>`
+
+Server-Sent Events (SSE) endpoint for real-time progress updates.
+
+**Response (SSE Stream):**
+```
+data: {"state": "PROGRESS", "status": "Scraping page 1...", "progress": 5}
+
+data: {"state": "PROGRESS", "status": "Embedding page 1/10...", "progress": 15}
+
+data: {"state": "SUCCESS", "status": "completed", "progress": 100}
+```
+
+**Example (JavaScript):**
+```javascript
+const eventSource = new EventSource('/embed-url/stream/abc123-...');
+eventSource.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log(`Progress: ${data.progress}% - ${data.status}`);
+  if (data.state === 'SUCCESS' || data.state === 'FAILURE') {
+    eventSource.close();
+  }
+};
+```
+
+#### `POST /embed-url/cancel/<task_id>`
+
+Cancel a running scraping task.
+
+**Authentication:** Required if `AUTH_REQUIRED_FOR=write` or `all`
+
+**Response:**
+```json
+{
+  "message": "Task cancellation requested",
+  "task_id": "abc123-def456-..."
+}
+```
+
+**Note:** Cancellation is graceful - the task will complete the current page before stopping.
+
 ---
 
 ### Querying
@@ -522,21 +647,43 @@ All endpoints may return error responses in the following format:
 
 **HTTP Status Codes:**
 - `200` - Success
+- `202` - Accepted (async operation started)
 - `400` - Bad Request (invalid input)
 - `401` - Unauthorized (authentication required)
 - `403` - Forbidden (invalid API key)
 - `404` - Not Found
+- `429` - Too Many Requests (rate limited)
 - `500` - Internal Server Error
-- `503` - Service Unavailable (Ollama not available)
+- `503` - Service Unavailable (Ollama not available or Celery not configured)
+- `504` - Gateway Timeout (operation timed out)
 
 ---
 
 ## Rate Limiting
 
-Currently no rate limiting is implemented. For production deployments, consider:
-- Implementing rate limiting middleware
-- Using reverse proxy (nginx) for rate limiting
-- Monitoring query patterns via `/stats` endpoint
+Rate limiting is implemented using Flask-Limiter with Redis backend:
+
+**Default Limits:**
+- `/embed-url`: 10 requests per minute
+- `/embed-url/status/*`: Exempt from rate limiting (for polling)
+- `/embed-url/stream/*`: Exempt from rate limiting (SSE connections)
+- Other endpoints: No default limits (configurable)
+
+**Configuration:**
+```bash
+# .env
+USE_REDIS_RATE_LIMITING=true
+REDIS_URL=redis://localhost:6379/0
+```
+
+**Rate Limit Response (429):**
+```json
+{
+  "error": "Rate limit exceeded. Please try again later."
+}
+```
+
+For additional rate limiting, consider using a reverse proxy (nginx) in front of the API
 
 ---
 

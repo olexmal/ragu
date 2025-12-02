@@ -201,6 +201,9 @@ All data is persisted in Docker volumes:
 - `redis_data` - Redis data
 - `logs` - Application logs
 - `rag_settings` - Application settings
+- `rag_cache` - Query cache data
+- `rag_history` - Query history data
+- `rag_monitoring` - Monitoring and analytics data
 - `ollama_data` - Ollama models (if containerized)
 - `temp_files` - Temporary upload files
 
@@ -327,6 +330,32 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml --profile prod u
    ```bash
    OLLAMA_URL=http://172.17.0.1:11434
    ```
+
+**WSL2 with Ollama:**
+
+If running Ollama in WSL2 (not Windows), Docker containers can't reach `localhost:11434` directly. You need to configure Ollama to listen on all interfaces:
+
+1. Run the configuration script:
+   ```bash
+   ./scripts/configure-ollama-wsl.sh
+   ```
+
+2. Find your WSL IP address:
+   ```bash
+   ip addr show eth0 | grep "inet " | awk '{print $2}' | cut -d/ -f1
+   ```
+
+3. Update `.env` with your WSL IP:
+   ```bash
+   OLLAMA_BASE_URL=http://172.20.x.x:11434
+   ```
+
+4. Restart containers:
+   ```bash
+   docker compose restart backend celery-worker
+   ```
+
+See [QUICKSTART.md](../QUICKSTART.md#configuring-ollama-in-wsl-for-docker-containers) for detailed instructions.
 
 **Containerized Ollama:**
 1. Check Ollama container is running:

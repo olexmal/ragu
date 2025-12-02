@@ -10,40 +10,45 @@ RAGU (Retrieval-Augmented Generation Universal) is built with a modular architec
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Web UI (Angular)                             │
 │  - Query Interface                                              │
-│  - Upload & Import                                              │
+│  - Upload & Import (with real-time progress)                    │
 │  - Collections Management                                       │
 │  - Settings & Configuration                                     │
 │  - Monitoring & Analytics                                       │
 └──────────────────────────┬──────────────────────────────────────┘
-                           │ HTTP/REST API
+                           │ HTTP/REST API + SSE
 ┌──────────────────────────▼──────────────────────────────────────┐
 │                      API Layer (app.py)                         │
 │  - RESTful endpoints                                            │
-│  - Request validation                                           │
-│  - Security controls                                            │
-│  - Session management                                           │
-└──────────────────────┬──────────────────────────────────────────┘
-                       │
-        ┌──────────────┴──────────────┐
-        │                             │
-┌───────▼────────┐          ┌─────────▼─────────┐
-│  Query Module  │          │  Embed Module     │
-│  (query.py)    │          │  (embed.py)       │
-│                │          │                   │
-│  - RAG chain   │          │  - Document load  │
-│  - Caching     │          │  - Chunking       │
-│  - Monitoring  │          │  - Embedding      │
-│                │          │  - Confluence     │
-└───────┬────────┘          └─────────┬─────────┘
-        │                             │
-        └──────────────┬──────────────┘
-                       │
-            ┌──────────▼──────────┐
-            │  Vector Database    │
-            │  (get_vector_db.py) │
-            │  - ChromaDB         │
-            │  - Collections      │
-            └─────────────────────┘
+│  - Request validation & rate limiting                           │
+│  - Security controls (authentication)                           │
+│  - SSE streaming for real-time updates                          │
+└───────────┬──────────────────────────────────┬──────────────────┘
+            │                                  │
+            │ Sync                             │ Async (Celery)
+            │                                  │
+┌───────────▼───────────┐          ┌───────────▼───────────┐
+│  Query Module         │          │  Background Tasks     │
+│  (query.py)           │          │  (tasks.py)           │
+│  - RAG chain          │          │  - Web scraping       │
+│  - Caching            │          │  - URL embedding      │
+│  - Monitoring         │          │  - Progress tracking  │
+└───────────┬───────────┘          └───────────┬───────────┘
+            │                                  │
+┌───────────▼───────────┐          ┌───────────▼───────────┐
+│  Embed Module         │          │  Redis                │
+│  (embed.py)           │          │  - Task queue broker  │
+│  - Document load      │          │  - Result backend     │
+│  - Chunking           │          │  - Rate limiting      │
+│  - Confluence import  │          └───────────────────────┘
+└───────────┬───────────┘
+            │
+┌───────────▼───────────┐
+│  Vector Database      │
+│  (get_vector_db.py)   │
+│  - ChromaDB           │
+│  - Connection pooling │
+│  - Collections        │
+└───────────────────────┘
 ```
 
 ### Frontend Architecture (Web UI)
@@ -55,7 +60,7 @@ web-ui/src/app/
 ├── features/              # Feature modules
 │   ├── admin/             # Admin features
 │   │   ├── dashboard/     # Dashboard component
-│   │   ├── import/        # Upload & Import (tabs: Upload, Confluence)
+│   │   ├── import/        # Upload & Import (tabs: Upload, Confluence, Web Scraping)
 │   │   ├── collections/   # Collections management
 │   │   ├── monitoring/    # Monitoring & analytics
 │   │   └── settings/      # Settings management
@@ -275,7 +280,88 @@ embeddings = EmbeddingProviderFactory.get_embeddings("ollama", embedding_config)
 - **OpenRouter Embeddings**: OpenRouter uses OpenAI-compatible API. For free embeddings, use Ollama with `nomic-embed-text`. OpenRouter embedding models are paid.
 - **Model Configuration**: Models are configured via the Settings UI or API. The model name must be entered as a string (e.g., `openai/text-embedding-3-small`).
 
-### 7. Monitoring Module (`monitoring.py`)
+### 7. Background Tasks (`celery_app.py`, `tasks.py`)
+
+**Purpose**: Handle long-running operations like web scraping asynchronously using Celery.
+
+**Components**:
+- `celery_app.py` - Celery configuration with Redis broker
+- `tasks.py` - Background task definitions
+
+**Configuration** (`.env`):
+```bash
+REDIS_URL=redis://localhost:6379/0
+```
+
+**Available Tasks**:
+- `scrape_and_embed_url_task` - Scrapes a URL and embeds content
+
+**Usage**:
+```python
+from src.tasks import scrape_and_embed_url_task
+from celery.result import AsyncResult
+
+# Start async task
+task = scrape_and_embed_url_task.delay(
+    url="https://docs.example.com",
+    collection_name="MyDocs",
+    version="v1.0",
+    max_depth=3
+)
+
+# Check status
+result = AsyncResult(task.id)
+print(f"State: {result.state}")
+print(f"Info: {result.info}")
+
+# Cancel task
+task.revoke(terminate=True)
+```
+
+**Task Time Limits**:
+- Default: 1 hour per task
+- Web scraping: 4 hours (configurable in `celery_app.py`)
+
+**Running Workers**:
+```bash
+# Start Celery worker
+celery -A src.celery_app worker --loglevel=info --concurrency=2
+
+# With Docker
+docker compose up celery-worker
+```
+
+### 8. Collection Naming (`utils.py`)
+
+**Purpose**: Sanitize and generate ChromaDB-compliant collection names.
+
+**ChromaDB Requirements**:
+- 3-512 characters
+- Only `[a-zA-Z0-9._-]` allowed
+- Must start and end with alphanumeric character
+
+**Key Functions**:
+
+```python
+from src.utils import sanitize_collection_name, generate_collection_name
+
+# Sanitize a collection name
+sanitize_collection_name("My Docs!")  # -> "My_Docs1"
+sanitize_collection_name("test")      # -> "test" (valid, unchanged)
+
+# Generate collection name with version
+generate_collection_name("Angular", "v19")      # -> "Angular-v19"
+generate_collection_name("Angular", "19")       # -> "Angular-v19" (adds 'v' prefix)
+generate_collection_name("Angular v19", "v19")  # -> "Angular-v19" (deduplicates)
+generate_collection_name("React", None)         # -> "React" (no version)
+```
+
+**Version Deduplication**:
+The `generate_collection_name` function automatically handles cases where the version is already in the base name:
+- `("Angular v19", "v19")` → `"Angular-v19"` (not `"Angular_v19-v19"`)
+- `("Angular_v19", "v19")` → `"Angular-v19"` (not `"Angular_v19-v19"`)
+
+### 9. Monitoring Module (`monitoring.py`)
 
 **Purpose**: Tracks query patterns and embedding operations.
 
