@@ -88,6 +88,22 @@
           />
         </div>
 
+        <!-- Collection Name Input -->
+        <div>
+          <label for="collectionName" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+            <span>Collection Name (optional)</span>
+            <app-help-icon helpText="Optional collection name. If not provided, the default collection will be used."></app-help-icon>
+          </label>
+          <input
+            type="text"
+            id="collectionName"
+            [(ngModel)]="collectionName"
+            name="collectionName"
+            class="w-full px-4 py-2 rounded-lg border border-surface-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            placeholder="e.g., my-docs"
+          />
+        </div>
+
         <!-- Overwrite Toggle -->
         <div class="flex items-center">
           <input
@@ -296,6 +312,22 @@
           />
         </div>
 
+        <!-- Collection Name Input -->
+        <div>
+          <label for="confluence-collection-name" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+            <span>Collection Name (optional)</span>
+            <app-help-icon helpText="Optional collection name. If not provided, the default collection will be used."></app-help-icon>
+          </label>
+          <input
+            type="text"
+            id="confluence-collection-name"
+            [(ngModel)]="confluenceCollectionName"
+            name="confluenceCollectionName"
+            class="w-full px-4 py-2 rounded-lg border border-surface-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            placeholder="e.g., my-docs"
+          />
+        </div>
+
         <!-- Overwrite Toggle -->
         <div class="flex items-center">
           <input
@@ -420,7 +452,7 @@
           <div>
             <label for="scrapeVersion" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
               <span>Version (optional)</span>
-              <app-help-icon helpText="Optional version string for collection naming."></app-help-icon>
+              <app-help-icon helpText="Version identifier (e.g., 'v19', '2.0'). Will be appended to collection name."></app-help-icon>
             </label>
             <input
               type="text"
@@ -428,11 +460,30 @@
               [(ngModel)]="scrapeVersion"
               name="scrapeVersion"
               class="w-full px-4 py-2 rounded-lg border border-surface-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              placeholder="e.g., v19"
+              placeholder="e.g., v19, 2.0, latest"
               [disabled]="scraping()"
             />
           </div>
 
+          <!-- Collection Name Input -->
+          <div>
+            <label for="scrapeCollectionName" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+              <span>Collection Name (optional)</span>
+              <app-help-icon helpText="Base name for the collection (e.g., 'Angular', 'React'). Combined with version as: name-version"></app-help-icon>
+            </label>
+            <input
+              type="text"
+              id="scrapeCollectionName"
+              [(ngModel)]="scrapeCollectionName"
+              name="scrapeCollectionName"
+              class="w-full px-4 py-2 rounded-lg border border-surface-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="e.g., Angular, React"
+              [disabled]="scraping()"
+            />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <!-- Max Depth Input -->
           <div>
             <label for="scrapeMaxDepth" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
@@ -475,11 +526,66 @@
 
         <!-- Error Message -->
         @if (scrapeError()) {
-          <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2">
-            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            <span>{{ scrapeError() }}</span>
+          <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            <div class="flex items-center gap-2 mb-2">
+              <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <span class="flex-1">{{ scrapeError() }}</span>
+            </div>
+            @if (scrapeTaskId() && scrapeError() && scrapeError().includes('timeout')) {
+              <button
+                type="button"
+                (click)="checkScrapeStatus()"
+                class="mt-2 text-sm bg-red-100 hover:bg-red-200 text-red-800 px-3 py-1 rounded transition-colors"
+              >
+                Check Status
+              </button>
+            }
+          </div>
+        }
+
+        <!-- Progress Indicator -->
+        @if (scraping()) {
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div class="flex items-center gap-2 mb-2">
+              <svg class="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <div class="flex-1">
+                <span class="text-sm font-medium text-blue-900">Processing: {{ scrapeProgress() }}%</span>
+                @if (scrapeStatusMessage()) {
+                  <p class="text-xs text-blue-700 mt-1">{{ scrapeStatusMessage() }}</p>
+                }
+              </div>
+            </div>
+            <div class="w-full bg-blue-200 rounded-full h-2 mb-2">
+              <div class="bg-blue-600 h-2 rounded-full transition-all duration-300" [style.width.%]="scrapeProgress()"></div>
+            </div>
+            @if (scrapeTaskId()) {
+              <div class="flex items-center justify-between mt-2">
+                <p class="text-xs text-blue-600">Task ID: {{ scrapeTaskId() }}</p>
+                <div class="flex items-center gap-3">
+                  <button
+                    type="button"
+                    (click)="checkScrapeStatus()"
+                    class="text-xs text-blue-700 hover:text-blue-900 underline"
+                    title="Check current task status"
+                  >
+                    Refresh
+                  </button>
+                  <button
+                    type="button"
+                    (click)="cancelScraping()"
+                    class="text-xs text-red-700 hover:text-red-900 underline font-medium"
+                    title="Stop and cancel the scraping task"
+                  >
+                    Stop
+                  </button>
+                </div>
+              </div>
+            }
           </div>
         }
 
@@ -527,10 +633,11 @@
               </svg>
               <span class="font-medium">Completed Successfully</span>
             </div>
+            @let results = scrapeResult()?.results;
             <p class="text-sm text-green-600">
-              Scraped {{ scrapeResult()?.results?.success || 0 }} pages.
-              @if (scrapeResult()?.results && scrapeResult()!.results.failed > 0) {
-                Failed: {{ scrapeResult()!.results.failed }}
+              Scraped {{ results?.success || 0 }} pages.
+              @if (results && results.failed > 0) {
+                Failed: {{ results.failed }}
               }
             </p>
           </div>

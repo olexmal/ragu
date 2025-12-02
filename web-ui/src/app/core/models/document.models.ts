@@ -37,12 +37,24 @@ export interface ScrapePageResult {
 
 export interface ScrapeEmbedResponse {
   message: string;
-  results: {
+  results?: {
     success: number;
     failed: number;
     errors: Array<{ url: string; error: string }>;
     pages: ScrapePageResult[];
   };
   version?: string;
+  // Async job fields
+  task_id?: string;
+  status_url?: string;
+}
+
+export interface ScrapeTaskStatus {
+  state: 'PENDING' | 'PROGRESS' | 'SUCCESS' | 'FAILURE' | 'TIMEOUT' | 'ERROR' | 'REVOKED';
+  status: string;
+  progress?: number;
+  url?: string;
+  result?: ScrapeEmbedResponse;
+  error?: string;
 }
 

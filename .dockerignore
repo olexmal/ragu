@@ -1,0 +1,65 @@
+# Python
+venv/
+ENV/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Node.js
+node_modules/
+web-ui/
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# Testing
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.bak
+_temp/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# ChromaDB (will be mounted as volume)
+chroma/
+
+# Settings (will be mounted as volume)
+.rag_settings/
+

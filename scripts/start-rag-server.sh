@@ -56,8 +56,19 @@ if [ ! -f ".env" ]; then
     echo "Copy .env.example to .env and configure as needed."
 fi
 
-# Start Flask server
-echo "Starting Flask API server..."
+# Start server
+echo "Starting RAGU API server..."
 cd "$(dirname "$0")/.."
-python3 -c "from src.app import app; import os; app.run(host=os.getenv('API_HOST', 'localhost'), port=int(os.getenv('API_PORT', 8080)), debug=os.getenv('FLASK_DEBUG', 'False').lower() == 'true')"
+
+# Check if Gunicorn is available (production mode)
+if command -v gunicorn &> /dev/null || python3 -c "import gunicorn" 2>/dev/null; then
+    echo "Starting with Gunicorn (production mode)..."
+    API_HOST=${API_HOST:-0.0.0.0}
+    API_PORT=${API_PORT:-8080}
+    gunicorn -c gunicorn_config.py "src.app:app"
+else
+    echo "Gunicorn not found. Starting with Flask development server..."
+    echo "For production, install Gunicorn: pip install gunicorn"
+    python3 -c "from src.app import app; import os; app.run(host=os.getenv('API_HOST', 'localhost'), port=int(os.getenv('API_PORT', 8080)), debug=os.getenv('FLASK_DEBUG', 'False').lower() == 'true')"
+fi
 

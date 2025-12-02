@@ -1,0 +1,171 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ragu-backend
+    ports:
+      - "${API_PORT:-8080}:8080"
+    volumes:
+      - chroma_data:/app/chroma
+      - logs:/app/logs
+      - rag_settings:/app/.rag_settings
+      - temp_files:/app/_temp
+      - rag_cache:/app/.rag_cache
+      - rag_history:/app/.rag_history
+      - rag_monitoring:/app/.rag_monitoring
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - CHROMA_PATH=/app/chroma
+      - LOG_DIR=/app/logs
+      - CACHE_DIR=/app/.rag_cache
+      - HISTORY_DIR=/app/.rag_history
+      - MONITORING_DIR=/app/.rag_monitoring
+      - API_HOST=0.0.0.0
+      - API_PORT=8080
+      - FLASK_DEBUG=${FLASK_DEBUG:-False}
+      - USE_REDIS_RATE_LIMITING=${USE_REDIS_RATE_LIMITING:-false}
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - ragu-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: ragu-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - ragu-network
+    restart: unless-stopped
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ragu-celery-worker
+    command: celery -A src.celery_app worker --loglevel=info --concurrency=2
+    volumes:
+      - chroma_data:/app/chroma
+      - logs:/app/logs
+      - rag_settings:/app/.rag_settings
+      - temp_files:/app/_temp
+      - rag_cache:/app/.rag_cache
+      - rag_history:/app/.rag_history
+      - rag_monitoring:/app/.rag_monitoring
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - CHROMA_PATH=/app/chroma
+      - LOG_DIR=/app/logs
+      - CACHE_DIR=/app/.rag_cache
+      - HISTORY_DIR=/app/.rag_history
+      - MONITORING_DIR=/app/.rag_monitoring
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - ragu-network
+    restart: unless-stopped
+
+  frontend-dev:
+    build:
+      context: ./web-ui
+      dockerfile: Dockerfile
+      target: development
+    container_name: ragu-frontend-dev
+    ports:
+      - "${FRONTEND_DEV_PORT:-4200}:4200"
+    volumes:
+      - ./web-ui:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    profiles:
+      - dev
+    networks:
+      - ragu-network
+    restart: unless-stopped
+
+  frontend-prod:
+    build:
+      context: ./web-ui
+      dockerfile: Dockerfile
+      target: production
+    container_name: ragu-frontend-prod
+    ports:
+      - "${FRONTEND_PROD_PORT:-80}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    profiles:
+      - prod
+    networks:
+      - ragu-network
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ragu-ollama
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    profiles:
+      - with-ollama
+    networks:
+      - ragu-network
+    restart: unless-stopped
+
+volumes:
+  chroma_data:
+    driver: local
+  redis_data:
+    driver: local
+  logs:
+    driver: local
+  rag_settings:
+    driver: local
+  ollama_data:
+    driver: local
+  temp_files:
+    driver: local
+  rag_cache:
+    driver: local
+  rag_history:
+    driver: local
+  rag_monitoring:
+    driver: local
+
+networks:
+  ragu-network:
+    driver: bridge
+    name: ragu-network
+

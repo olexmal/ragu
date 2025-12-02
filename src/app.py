@@ -2,7 +2,7 @@
 Flask API Server
 RESTful API for embedding and querying documentation.
 """
-from flask import Flask, request, jsonify, session
+from flask import Flask, request, jsonify, session, Response, stream_with_context
 from flask_cors import CORS
 import os
 import sys
@@ -10,6 +10,10 @@ from pathlib import Path
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 import requests
+from functools import wraps
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+import signal
+from .timeout_decorator import timeout, TimeoutError as CustomTimeoutError
 
 # Handle imports for both module and standalone execution
 if __name__ == '__main__':
@@ -49,11 +53,69 @@ app.config['SESSION_COOKIE_SECURE'] = os.getenv('SESSION_SECURE', 'false').lower
 # Enable CORS with credentials support for session cookies
 CORS(app, supports_credentials=True)
 
+# Initialize logger early (needed for rate limiting configuration)
+logger = setup_logging()
+
+# Configure rate limiting
+try:
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
+    import redis
+    
+    # Try to use Redis for distributed rate limiting (if available)
+    redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+    redis_available = False
+    
+    # Test Redis connection first with a short timeout
+    try:
+        redis_client = redis.from_url(redis_url, socket_connect_timeout=0.5, socket_timeout=0.5)
+        redis_client.ping()
+        redis_available = True
+        logger.info("Redis available for rate limiting")
+    except Exception as e:
+        logger.warning(f"Redis not available for rate limiting ({type(e).__name__}: {str(e)}), using in-memory storage")
+        redis_available = False
+    
+    # Always use in-memory storage by default to avoid Redis connection issues
+    # Redis can be enabled later via USE_REDIS_RATE_LIMITING=true when properly configured
+    use_redis = os.getenv('USE_REDIS_RATE_LIMITING', 'false').lower() == 'true'
+    
+    if use_redis and redis_available:
+        try:
+            limiter = Limiter(
+                app=app,
+                key_func=get_remote_address,
+                storage_uri=redis_url,
+                default_limits=["200 per day", "50 per hour"],
+                strategy="fixed-window",
+                on_breach=lambda request, endpoint, limits: logger.warning(f"Rate limit breached for {endpoint}"),
+                swallow_errors=True  # Don't fail requests if rate limiting fails
+            )
+            logger.info("Rate limiting using Redis storage")
+        except Exception as e:
+            logger.warning(f"Failed to initialize Redis rate limiter ({e}), falling back to in-memory")
+            use_redis = False
+    
+    if not use_redis or not redis_available:
+        # Use in-memory storage (works without Redis)
+        limiter = Limiter(
+            app=app,
+            key_func=get_remote_address,
+            default_limits=["200 per day", "50 per hour"],
+            strategy="fixed-window",
+            swallow_errors=True  # Don't fail requests if rate limiting fails
+        )
+        logger.info("Rate limiting using in-memory storage (Redis not required)")
+except ImportError:
+    logger.warning("Flask-Limiter not installed, rate limiting disabled")
+    limiter = None
+except Exception as e:
+    logger.error(f"Failed to initialize rate limiter: {e}", exc_info=True)
+    limiter = None
+
 # Ensure temp directory exists
 TEMP_DIR = Path(os.getenv('TEMP_FOLDER', './_temp'))
 TEMP_DIR.mkdir(parents=True, exist_ok=True)
-
-logger = setup_logging()
 
 # Configure werkzeug (Flask's HTTP request logger) to redact API keys
 import logging
@@ -113,6 +175,7 @@ def health():
 
 @app.route('/embed', methods=['POST'])
 @requires_write_auth
+@(limiter.limit("10 per minute") if limiter else lambda f: f)
 def embed():
     """Embed a single file into the vector database."""
     if 'file' not in request.files:
@@ -151,8 +214,22 @@ def embed():
         return jsonify({"error": f"Failed to save file: {str(e)}"}), 500
     
     try:
-        # Embed with version support and incremental update capability
-        embed_file(str(file_path), collection_name=collection_name, version=version, overwrite=overwrite)
+        # Apply 60 second timeout to embedding operations
+        embed_timeout = int(os.getenv('EMBED_TIMEOUT', 60))
+        
+        @timeout(embed_timeout)
+        def execute_embed():
+            return embed_file(str(file_path), collection_name=collection_name, version=version, overwrite=overwrite)
+        
+        try:
+            execute_embed()
+        except CustomTimeoutError as e:
+            logger.warning(f"Embedding timeout after {embed_timeout}s: {safe_filename}")
+            return jsonify({
+                "error": f"Embedding timed out after {embed_timeout} seconds. The file may be too large.",
+                "timeout": embed_timeout
+            }), 504
+        
         return jsonify({
             "message": "File embedded successfully",
             "version": version,
@@ -214,22 +291,27 @@ def embed_batch():
 
 @app.route('/embed-url', methods=['POST'])
 @requires_write_auth
+@(limiter.limit("10 per minute") if limiter else lambda f: f)
 def embed_url_endpoint():
-    """Embed content from a URL."""
+    """Start background job to embed content from a URL."""
     data = request.get_json() or request.form
     
     url = data.get('url')
     version = data.get('version')
-    collection_name = data.get('collection_name')  # Optional collection name parameter
+    collection_name = data.get('collection_name')
     overwrite = str(data.get('overwrite', 'false')).lower() == 'true'
     max_depth = int(data.get('max_depth', 3))
     
     if not url:
         return jsonify({"error": "URL is required"}), 400
-        
+    
+    # Try to use Celery for async execution
     try:
-        results = embed_url(
-            url,
+        from .tasks import scrape_and_embed_url_task
+        
+        # Start background task
+        task = scrape_and_embed_url_task.delay(
+            url=url,
             collection_name=collection_name,
             version=version,
             overwrite=overwrite,
@@ -237,20 +319,291 @@ def embed_url_endpoint():
         )
         
         return jsonify({
-            "message": "URL scraping and embedding completed",
-            "results": results,
-            "version": version,
-            "collection_name": collection_name
+            "message": "URL scraping and embedding job started",
+            "task_id": task.id,
+            "status_url": f"/embed-url/status/{task.id}"
+        }), 202  # 202 Accepted for async operations
+        
+    except ImportError:
+        # Fallback to synchronous execution if Celery is not available
+        logger.warning("Celery not available, using synchronous execution")
+        try:
+            results = embed_url(
+                url,
+                collection_name=collection_name,
+                version=version,
+                overwrite=overwrite,
+                max_depth=max_depth
+            )
+            
+            return jsonify({
+                "message": "URL scraping and embedding completed",
+                "results": results,
+                "version": version,
+                "collection_name": collection_name
+            }), 200
+            
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        except Exception as e:
+            logger.error(f"URL embedding failed: {e}")
+            return jsonify({"error": f"URL embedding failed: {str(e)}"}), 500
+    
+    except Exception as e:
+        logger.error(f"Failed to start URL embedding task: {e}")
+        return jsonify({"error": f"Failed to start task: {str(e)}"}), 500
+
+
+@app.route('/embed-url/status/<task_id>', methods=['GET'])
+@requires_write_auth  # Use write_auth which allows GET without auth if AUTH_REQUIRED_FOR is 'write'
+@(limiter.exempt if limiter else lambda f: f)
+def embed_url_status(task_id):
+    """Get status of a URL embedding task (single request)."""
+    try:
+        from .tasks import scrape_and_embed_url_task
+        from celery.result import AsyncResult
+        
+        task_result = AsyncResult(task_id, app=scrape_and_embed_url_task.app)
+        
+        if task_result.state == 'PENDING':
+            response = {
+                'state': task_result.state,
+                'status': 'Task is waiting to be processed'
+            }
+        elif task_result.state == 'PROGRESS':
+            info = task_result.info or {}
+            response = {
+                'state': task_result.state,
+                'status': info.get('status', 'Processing'),
+                'progress': info.get('progress', 0),
+                'url': info.get('url', '')
+            }
+        elif task_result.state == 'SUCCESS':
+            response = {
+                'state': task_result.state,
+                'status': 'completed',
+                'result': task_result.result
+            }
+        elif task_result.state == 'REVOKED':
+            response = {
+                'state': task_result.state,
+                'status': 'cancelled',
+                'error': 'Task was cancelled'
+            }
+        else:  # FAILURE
+            response = {
+                'state': task_result.state,
+                'status': 'failed',
+                'error': str(task_result.info) if task_result.info else 'Unknown error'
+            }
+        
+        return jsonify(response), 200
+        
+    except ImportError:
+        return jsonify({"error": "Celery is not configured"}), 503
+    except Exception as e:
+        logger.error(f"Failed to get task status: {e}")
+        return jsonify({"error": f"Failed to get task status: {str(e)}"}), 500
+
+
+@app.route('/embed-url/cancel/<task_id>', methods=['POST'])
+@requires_write_auth
+@(limiter.exempt if limiter else lambda f: f)
+def cancel_embed_url_task(task_id):
+    """Cancel a running URL embedding task."""
+    try:
+        from .tasks import scrape_and_embed_url_task
+        from celery.result import AsyncResult
+        
+        task_result = AsyncResult(task_id, app=scrape_and_embed_url_task.app)
+        
+        # Revoke the task
+        task_result.revoke(terminate=True)
+        
+        logger.info(f"Task {task_id} revoked (cancelled)")
+        
+        return jsonify({
+            "message": "Task cancellation requested",
+            "task_id": task_id
         }), 200
         
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+    except ImportError:
+        return jsonify({"error": "Celery is not configured"}), 503
     except Exception as e:
-        logger.error(f"URL embedding failed: {e}")
-        return jsonify({"error": f"URL embedding failed: {str(e)}"}), 500
+        logger.error(f"Failed to cancel task: {e}")
+        return jsonify({"error": f"Failed to cancel task: {str(e)}"}), 500
+
+
+@app.route('/embed-url/stream/<task_id>', methods=['GET'])
+@(limiter.exempt if limiter else lambda f: f)
+def embed_url_status_stream(task_id):
+    """Stream real-time updates for a URL embedding task using Server-Sent Events."""
+    import time
+    import json
+    
+    # Check authentication manually (EventSource doesn't send cookies reliably)
+    # Use same logic as requires_write_auth - allow if AUTH_REQUIRED_FOR is 'write' (GET requests don't need auth)
+    from .auth import is_authenticated, AUTH_ENABLED, AUTH_REQUIRED_FOR
+    
+    # If auth is enabled and required for all operations, check authentication
+    if AUTH_ENABLED and AUTH_REQUIRED_FOR == 'all':
+        if not is_authenticated():
+            # Send error as SSE event and close
+            def error_stream():
+                yield f"data: {json.dumps({'state': 'ERROR', 'error': 'Authentication required. Please log in.'})}\n\n"
+            return Response(
+                stream_with_context(error_stream()),
+                mimetype='text/event-stream',
+                status=200,  # Use 200 so EventSource can read the error message
+                headers={
+                    'Cache-Control': 'no-cache',
+                    'X-Accel-Buffering': 'no',
+                    'Connection': 'keep-alive'
+                }
+            )
+    # If AUTH_REQUIRED_FOR is 'write', GET requests (like SSE) don't need auth
+    
+    try:
+        from .tasks import scrape_and_embed_url_task
+        from celery.result import AsyncResult
+        
+        def generate():
+            """Generator function that yields SSE events."""
+            task_result = AsyncResult(task_id, app=scrape_and_embed_url_task.app)
+            last_state = None
+            last_progress = -1
+            last_status = None
+            poll_interval = 0.5  # Poll every 0.5 seconds for more responsive updates
+            
+            try:
+                while True:
+                    # Check if client disconnected (no timeout - stream stays open as long as task runs)
+                    try:
+                        task_result = AsyncResult(task_id, app=scrape_and_embed_url_task.app)
+                        current_state = task_result.state
+                        
+                        # Build response based on state
+                        if current_state == 'PENDING':
+                            response = {
+                                'state': 'PENDING',
+                                'status': 'Task is waiting to be processed',
+                                'progress': 0
+                            }
+                        elif current_state == 'STARTED':
+                            # Task has started but hasn't updated state yet
+                            response = {
+                                'state': 'PROGRESS',
+                                'status': 'Task starting...',
+                                'progress': 0
+                            }
+                        elif current_state == 'PROGRESS':
+                            info = task_result.info or {}
+                            progress = info.get('progress', 0)
+                            response = {
+                                'state': current_state,
+                                'status': info.get('status', 'Processing'),
+                                'progress': progress,
+                                'url': info.get('url', '')
+                            }
+                        elif current_state == 'SUCCESS':
+                            response = {
+                                'state': current_state,
+                                'status': 'completed',
+                                'progress': 100,
+                                'result': task_result.result
+                            }
+                            # Send final event and close
+                            yield f"data: {json.dumps(response)}\n\n"
+                            break
+                        elif current_state == 'REVOKED':
+                            response = {
+                                'state': current_state,
+                                'status': 'cancelled',
+                                'error': 'Task was cancelled'
+                            }
+                            # Send cancellation event and close
+                            yield f"data: {json.dumps(response)}\n\n"
+                            break
+                        elif current_state == 'FAILURE':
+                            response = {
+                                'state': current_state,
+                                'status': 'failed',
+                                'error': str(task_result.info) if task_result.info else 'Unknown error'
+                            }
+                            # Send error event and close
+                            yield f"data: {json.dumps(response)}\n\n"
+                            break
+                        elif current_state == 'RETRY':
+                            # Task is being retried
+                            response = {
+                                'state': 'PROGRESS',
+                                'status': 'Task is being retried...',
+                                'progress': 0
+                            }
+                        else:
+                            # Unknown state - treat as in progress
+                            logger.warning(f"Unknown task state: {current_state} for task {task_id}")
+                            response = {
+                                'state': 'PROGRESS',
+                                'status': f'Task state: {current_state}',
+                                'progress': 0
+                            }
+                        
+                        # Always send updates for PROGRESS state to show real-time progress
+                        # Also send if status message changed (even if progress is same)
+                        current_progress = response.get('progress', 0)
+                        current_status = response.get('status', '')
+                        should_send = (
+                            current_state == 'PROGRESS' or 
+                            current_state != last_state or 
+                            current_progress != last_progress or
+                            current_status != last_status
+                        )
+                        
+                        if should_send:
+                            yield f"data: {json.dumps(response)}\n\n"
+                            last_state = current_state
+                            last_progress = current_progress
+                            last_status = current_status
+                        
+                        # If task is complete, break
+                        if current_state in ('SUCCESS', 'FAILURE'):
+                            break
+                            
+                    except Exception as e:
+                        logger.error(f"Error checking task status: {e}")
+                        yield f"data: {json.dumps({'state': 'ERROR', 'error': str(e)})}\n\n"
+                        break
+                    
+                    # Wait before next poll
+                    time.sleep(poll_interval)
+                    
+            except GeneratorExit:
+                # Client disconnected
+                logger.info(f"SSE stream closed for task {task_id}")
+            except Exception as e:
+                logger.error(f"Error in SSE stream for task {task_id}: {e}")
+                yield f"data: {json.dumps({'state': 'ERROR', 'error': str(e)})}\n\n"
+        
+        return Response(
+            stream_with_context(generate()),
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control': 'no-cache',
+                'X-Accel-Buffering': 'no',  # Disable buffering in nginx
+                'Connection': 'keep-alive'
+            }
+        )
+        
+    except ImportError:
+        return jsonify({"error": "Celery is not configured"}), 503
+    except Exception as e:
+        logger.error(f"Failed to create SSE stream: {e}")
+        return jsonify({"error": f"Failed to create stream: {str(e)}"}), 500
 
 
 @app.route('/query', methods=['POST'])
+@(limiter.limit("30 per minute") if limiter else lambda f: f)
 def query():
     """Query the documentation using natural language."""
     import time
@@ -277,10 +630,24 @@ def query():
     use_simple = data.get('simple', False)  # Use simple query (faster)
     
     try:
-        if use_simple:
-            result = query_simple(question, collection_name, version, k)
-        else:
-            result = query_docs(question, collection_name, version, k)
+        # Apply 30 second timeout to query operations
+        query_timeout = int(os.getenv('QUERY_TIMEOUT', 30))
+        
+        @timeout(query_timeout)
+        def execute_query():
+            if use_simple:
+                return query_simple(question, collection_name, version, k)
+            else:
+                return query_docs(question, collection_name, version, k)
+        
+        try:
+            result = execute_query()
+        except CustomTimeoutError as e:
+            logger.warning(f"Query timeout after {query_timeout}s: {question[:100]}")
+            return jsonify({
+                "error": f"Query timed out after {query_timeout} seconds. Please try a simpler query or reduce the number of documents (k).",
+                "timeout": query_timeout
+            }), 504
         
         # Format response - convert Document objects to dicts for JSON serialization
         sources = []
@@ -352,6 +719,7 @@ def query():
 
 
 @app.route('/collections', methods=['GET'])
+@(limiter.exempt if limiter else lambda f: f)
 def list_collections():
     """List all available collections."""
     try:
@@ -361,9 +729,16 @@ def list_collections():
         
         collection_info = []
         for collection in collections:
+            try:
+                # Try to get count, handle errors gracefully
+                count = collection.count()
+            except Exception as count_error:
+                logger.warning(f"Could not get count for collection {collection.name}: {count_error}")
+                count = 0  # Use 0 if count cannot be determined
+            
             collection_info.append({
                 "name": collection.name,
-                "count": collection.count()
+                "count": count
             })
         
         return jsonify({
@@ -371,7 +746,7 @@ def list_collections():
             "total": len(collection_info)
         }), 200
     except Exception as e:
-        logger.error(f"Error listing collections: {e}")
+        logger.error(f"Error listing collections: {e}", exc_info=True)
         return jsonify({"error": f"Failed to list collections: {str(e)}"}), 500
 
 
@@ -431,20 +806,21 @@ def delete_collection(version):
         # Try to determine if version is actually a version number or a full collection name
         collection_name = None
         
-        # Check if version looks like a version number (contains digits)
-        if re.match(r'^[\d.]+$', version):
-            # It's a version number, use versioned collection name
-            collection_name = generate_collection_name(base_name, version)
-        else:
-            # It might be a full collection name, try as-is first
-            try:
-                # Try to get the collection to verify it exists
-                client.get_collection(name=version)
-                collection_name = version
-            except Exception:
-                # If that fails, try with version suffix
+        # Always try as collection name first (most common case from UI)
+        try:
+            # Try to get the collection to verify it exists
+            client.get_collection(name=version)
+            collection_name = version
+        except Exception:
+            # Not a direct collection name, try to construct it
+            if re.match(r'^[\d.]+$', version):
+                # It's a version number, use versioned collection name
+                collection_name = generate_collection_name(base_name, version)
+            else:
+                # Try with version suffix as fallback
                 collection_name = generate_collection_name(base_name, version)
         
+        # Delete the collection
         client.delete_collection(name=collection_name)
         
         logger.info(f"Collection {collection_name} deleted successfully")
@@ -474,22 +850,26 @@ def list_collection_documents(version):
         collection_name = None
         collection = None
         
-        # Check if version looks like a version number (contains digits)
-        import re
-        if re.match(r'^[\d.]+$', version):
-            # It's a version number, use versioned collection name
-            collection_name = generate_collection_name(base_name, version)
-        else:
-            # It might be a full collection name, try as-is first
-            try:
-                collection = client.get_collection(name=version)
-                collection_name = version
-            except Exception:
-                # If that fails, try with version suffix
+        # Always try as collection name first (most common case from UI)
+        try:
+            collection = client.get_collection(name=version)
+            collection_name = version
+        except Exception:
+            # Not a direct collection name, try to construct it
+            import re
+            if re.match(r'^[\d.]+$', version):
+                # It's a version number, use versioned collection name
                 collection_name = generate_collection_name(base_name, version)
-        
-        if not collection:
-            collection = client.get_collection(name=collection_name)
+            else:
+                # Try with version suffix as fallback
+                collection_name = generate_collection_name(base_name, version)
+            
+            # Try to get the collection with the constructed name
+            try:
+                collection = client.get_collection(name=collection_name)
+            except Exception as e:
+                logger.error(f"Collection not found: {collection_name} (from version param: {version})")
+                raise
         
         # Get all documents from the collection
         # Using limit=None to get all documents, but we'll use a reasonable limit

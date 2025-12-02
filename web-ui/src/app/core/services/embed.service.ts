@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ApiService } from './api.service';
-import { EmbedResponse, BatchEmbedResponse, ScrapeEmbedResponse } from '../models/document.models';
+import { EmbedResponse, BatchEmbedResponse, ScrapeEmbedResponse, ScrapeTaskStatus } from '../models/document.models';
 
 @Injectable({
   providedIn: 'root'
@@ -65,5 +65,13 @@ export class EmbedService extends ApiService {
     }
 
     return this.post<ScrapeEmbedResponse>('/embed-url', body);
+  }
+
+  getScrapeTaskStatus(taskId: string): Observable<ScrapeTaskStatus> {
+    return this.get<ScrapeTaskStatus>(`/embed-url/status/${taskId}`);
+  }
+
+  cancelScrapeTask(taskId: string): Observable<{ message: string; task_id: string }> {
+    return this.post<{ message: string; task_id: string }>(`/embed-url/cancel/${taskId}`, {});
   }
 }

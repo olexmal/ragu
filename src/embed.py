@@ -54,11 +54,10 @@ def embed_file(file_path, collection_name=None, version=None, overwrite=False):
     if not file_path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
     
-    # Determine collection name
-    if version:
-        final_collection_name = f"{collection_name or COLLECTION_NAME}-v{version}"
-    else:
-        final_collection_name = collection_name or COLLECTION_NAME
+    # Determine collection name (sanitize to meet ChromaDB requirements)
+    from .utils import generate_collection_name
+    base = collection_name or COLLECTION_NAME
+    final_collection_name = generate_collection_name(base, version)
     
     logger.info(f"Embedding file: {file_path} into collection: {final_collection_name}")
     start_time = time.time()
@@ -253,11 +252,10 @@ def embed_confluence_page(page_id: str, confluence_config: Dict[str, Any],
     if not content:
         raise ValueError(f"No content found in Confluence page: {page_id}")
     
-    # Determine collection name
-    if version:
-        final_collection_name = f"{collection_name or COLLECTION_NAME}-v{version}"
-    else:
-        final_collection_name = collection_name or COLLECTION_NAME
+    # Determine collection name (sanitize to meet ChromaDB requirements)
+    from .utils import generate_collection_name
+    base = collection_name or COLLECTION_NAME
+    final_collection_name = generate_collection_name(base, version)
     
     logger.info(f"Embedding Confluence page: {metadata.get('page_title', page_id)} into collection: {final_collection_name}")
     start_time = time.time()

@@ -182,16 +182,31 @@ cp .env.example .env
 
 ### 6. Start the System
 
-**Option A: Start Backend Only (API)**
+**Option A: Docker Compose (Recommended)**
 ```bash
-# Using helper script
+# Development mode (with hot reload)
+./scripts/docker-start.sh dev
+
+# Production mode (detached)
+./scripts/docker-start.sh prod
+
+# With containerized Ollama
+./scripts/docker-start.sh dev container
+```
+
+**Option B: Start Backend Only (API)**
+```bash
+# Using helper script (automatically uses Gunicorn in production)
 ./scripts/start-rag-server.sh
 
-# Or manually
+# Or manually with Gunicorn (recommended for production)
+gunicorn -c gunicorn_config.py "src.app:app"
+
+# Or manually with Flask development server (development only)
 python3 -c "from src.app import app; app.run(host='localhost', port=8080)"
 ```
 
-**Option B: Start with Web UI**
+**Option C: Start with Web UI**
 ```bash
 # Terminal 1: Start backend API
 ./scripts/start-rag-server.sh
@@ -201,8 +216,9 @@ cd web-ui
 npm start
 ```
 
-The API will be available at `http://localhost:8080`  
-The web UI will be available at `http://localhost:4200` (development) or served from the backend (production)
+**Service URLs:**
+- Docker: Frontend Dev `http://localhost:4200`, Frontend Prod `http://localhost:80`, Backend API `http://localhost:8080`
+- Local: API `http://localhost:8080`, Web UI `http://localhost:4200` (development)
 
 ---
 
@@ -484,9 +500,12 @@ npm start
 **Backend:**
 ```bash
 # No build step needed - Python runs directly
-# Use production WSGI server like gunicorn:
-pip install gunicorn
-gunicorn -w 4 -b 0.0.0.0:8080 "src.app:app"
+# Use production WSGI server (Gunicorn is included in requirements.txt):
+# Using configuration file (recommended)
+gunicorn -c gunicorn_config.py "src.app:app"
+
+# Or with inline configuration
+gunicorn -w 4 -b 0.0.0.0:8080 --timeout 30 "src.app:app"
 ```
 
 **Frontend:**

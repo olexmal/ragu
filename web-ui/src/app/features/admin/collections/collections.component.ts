@@ -37,13 +37,15 @@ export class CollectionsComponent implements OnInit {
 
   loadCollections(): void {
     this.loading.set(true);
+    this.error.set(''); // Clear any previous errors when refreshing
     this.collectionService.getCollections().subscribe({
       next: (response: { collections: Collection[]; total: number }) => {
         this.collections.set(response.collections);
         this.loading.set(false);
+        this.error.set(''); // Ensure error is cleared on success
       },
       error: (error: any) => {
-        this.error.set(error.message || 'Failed to load collections');
+        this.error.set(error.error?.error || error.message || 'Failed to load collections');
         this.loading.set(false);
       }
     });
@@ -112,8 +114,9 @@ export class CollectionsComponent implements OnInit {
   }
 
   deleteCollection(version: string): void {
-    const collection = this.collections().find((c: Collection) => this.extractVersion(c.name) === version);
-    const collectionName = collection?.name || `v${version}`;
+    // version is now the full collection name, not an extracted version
+    const collection = this.collections().find((c: Collection) => c.name === version);
+    const collectionName = collection?.name || version;
     
     if (!confirm(`Are you sure you want to delete collection "${collectionName}"?\n\nThis will permanently delete all documents in this collection. This action cannot be undone.`)) {
       return;
@@ -161,9 +164,9 @@ export class CollectionsComponent implements OnInit {
         this.collectionDocuments.set(documents);
         
         // Update collection count
+        // version is now the full collection name
         const collections = this.collections().map((c: Collection) => {
-          const v = this.extractVersion(c.name);
-          if (v === version) {
+          if (c.name === version) {
             return { ...c, count: Math.max(0, c.count - 1) };
           }
           return c;

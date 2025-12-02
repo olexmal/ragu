@@ -4,7 +4,88 @@ Get RAGU (Retrieval-Augmented Generation Universal) up and running in 5 minutes!
 
 ---
 
-## ⚡ 5-Minute Setup
+## 🐳 Docker Quick Start (Fastest - 2 minutes)
+
+**Prerequisites:** Docker and Docker Compose installed
+
+```bash
+# Clone the repository (if not already done)
+git clone <repository-url>
+cd ragu
+
+# Start all services in development mode
+./scripts/docker-start.sh dev
+
+# Or start in production mode
+./scripts/docker-start.sh prod
+```
+
+**Access the application:**
+- Frontend: http://localhost:4200 (dev) or http://localhost:80 (prod)
+- Backend API: http://localhost:8080
+
+**With containerized Ollama:**
+```bash
+./scripts/docker-start.sh dev container
+```
+
+**Stop services:**
+```bash
+./scripts/docker-stop.sh
+```
+
+**View logs:**
+```bash
+./scripts/docker-logs.sh
+```
+
+For detailed Docker instructions, see [docs/DOCKER_GUIDE.md](docs/DOCKER_GUIDE.md).
+
+### WSL2/Docker Configuration (If Ollama is in WSL)
+
+If you're running Ollama in WSL2 and Docker containers in WSL2, you need to configure Ollama to listen on all interfaces so containers can access it:
+
+```bash
+# Run the configuration script (requires sudo)
+sudo ./scripts/configure-ollama-wsl.sh
+```
+
+This script will:
+- Configure Ollama systemd service to listen on `0.0.0.0:11434` (all interfaces)
+- Restart Ollama service
+- Verify the configuration
+
+**After running the script:**
+
+1. Get your WSL IP address:
+   ```bash
+   ip addr show eth0 | grep 'inet ' | awk '{print $2}' | cut -d/ -f1
+   ```
+
+2. Update your `.env` file or set environment variable:
+   ```bash
+   # Create/update .env file
+   echo "OLLAMA_BASE_URL=http://<WSL_IP>:11434" > .env
+   # Replace <WSL_IP> with the IP from step 1
+   ```
+
+3. Restart Docker containers:
+   ```bash
+   docker compose restart backend celery-worker
+   ```
+
+**Alternative: Use Windows Ollama**
+
+If you prefer to use Ollama running on Windows (outside WSL), configure it to listen on `0.0.0.0:11434` and use the Windows host IP:
+```bash
+# Get Windows host IP from WSL
+cat /etc/resolv.conf | grep nameserver | awk '{print $2}'
+# Then set OLLAMA_BASE_URL=http://<WINDOWS_IP>:11434
+```
+
+---
+
+## ⚡ Manual Setup (5-Minute Setup)
 
 ### Step 1: Install Ollama (2 minutes)
 
@@ -264,6 +345,13 @@ export const environment = {
 - Check that `confluence-markdown-exporter` is installed: `pip show confluence-markdown-exporter`
 - Ensure API token has read permissions for the page
 - Try with a different page ID to rule out page-specific issues
+
+**Docker containers can't connect to Ollama?**
+- If Ollama is in WSL: Run `sudo ./scripts/configure-ollama-wsl.sh` to configure it for Docker access
+- Verify Ollama is listening on all interfaces: `netstat -tuln | grep 11434` (should show `0.0.0.0:11434`)
+- Check OLLAMA_BASE_URL is set correctly in `.env` or docker-compose.yml
+- Test connectivity from container: `docker compose exec backend curl http://<OLLAMA_IP>:11434/api/tags`
+- For WSL2: Use WSL IP address, not `host.docker.internal` (which may not work in WSL2)
 
 ---
 
