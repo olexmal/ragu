@@ -9,8 +9,8 @@
 - [x] **Shared models**: Define DTOs/records mirroring Python payloads (e.g., `EmbedRequest`, `QueryResponse`).
 
 ## Phase 2 – Document & Embedding Services
-- [ ] **Document processor**: Implement Apache Tika + OpenNLP based document chunker (`document-processor/DocumentProcessor.java`).
-- [ ] **Embedding service**: Implement DJL/LangChain4j embedding provider with Redis caching (`embedding/EmbeddingService.java`) and expose gRPC endpoints for internal consumers.
+- [x] **Document processor**: Implement Apache Tika + OpenNLP based document chunker (`document-processor/DocumentProcessor.java`).
+- [x] **Embedding service**: Implement DJL/LangChain4j embedding provider with Redis caching (`embedding/EmbeddingService.java`) and expose gRPC endpoints for internal consumers.
 
 ## Phase 3 – Vector & Query Layer
 - [ ] **Vector adapter**: Build Qdrant client wrapper (`vector/QdrantVectorService.java`) that mirrors the Python `generate_collection_name` logic for upsert/search.
