@@ -1,5 +1,7 @@
 package ai.ragu.api;
 
+import ai.ragu.security.RequiresAuth;
+import ai.ragu.security.RequiresWriteAuth;
 import ai.ragu.vector.VectorDocument;
 import ai.ragu.vector.VectorStore;
 import jakarta.inject.Inject;
@@ -20,6 +22,7 @@ import java.util.Optional;
  */
 @Path("/collections")
 @Produces(MediaType.APPLICATION_JSON)
+@RequiresAuth
 public class CollectionsResource extends BaseResource {
 
     private final VectorStore vectorStore;
@@ -58,6 +61,7 @@ public class CollectionsResource extends BaseResource {
 
     @DELETE
     @Path("/{name}")
+    @RequiresWriteAuth
     public Response deleteCollection(@PathParam("name") String name) {
         return resolveCollectionName(name)
                 .map(collection -> {
@@ -88,6 +92,7 @@ public class CollectionsResource extends BaseResource {
 
     @DELETE
     @Path("/{name}/documents/{docId}")
+    @RequiresWriteAuth
     public Response deleteDocument(@PathParam("name") String name, @PathParam("docId") String docId) {
         return resolveCollectionName(name)
                 .map(collection -> {

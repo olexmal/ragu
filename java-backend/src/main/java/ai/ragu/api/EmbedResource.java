@@ -2,6 +2,7 @@ package ai.ragu.api;
 
 import ai.ragu.api.model.EmbedResponse;
 import ai.ragu.api.service.EmbeddingPipeline;
+import ai.ragu.security.RequiresWriteAuth;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
@@ -18,6 +19,7 @@ import org.jboss.resteasy.reactive.multipart.FileUpload;
 @Path("/embed")
 @Consumes(MediaType.MULTIPART_FORM_DATA)
 @Produces(MediaType.APPLICATION_JSON)
+@RequiresWriteAuth
 public class EmbedResource extends BaseResource {
 
     private final EmbeddingPipeline embeddingPipeline;

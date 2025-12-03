@@ -3,6 +3,7 @@ package ai.ragu.api;
 import ai.ragu.api.model.QueryRequest;
 import ai.ragu.api.model.QueryResponse;
 import ai.ragu.rag.RagService;
+import ai.ragu.security.RequiresAuth;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
@@ -17,6 +18,7 @@ import jakarta.ws.rs.core.Response;
 @Path("/query")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
+@RequiresAuth
 public class QueryResource extends BaseResource {
 
     private final RagService ragService;

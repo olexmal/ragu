@@ -1,5 +1,7 @@
 package ai.ragu.api;
 
+import ai.ragu.security.AuthService;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
@@ -18,28 +20,32 @@ import java.util.Map;
 @Produces(MediaType.APPLICATION_JSON)
 public class AuthResource extends BaseResource {
 
+    @Inject
+    AuthService authService;
+
     @POST
     @Path("/login")
-    public Response login() {
-        return notImplemented("Username/password authentication");
+    public Response login(Map<String, String> payload) {
+        String username = payload.getOrDefault("username", "");
+        String password = payload.getOrDefault("password", "");
+        if (authService.verifyCredentials(username, password)) {
+            return Response.ok(Map.of("message", "Login successful")).build();
+        }
+        return Response.status(Response.Status.UNAUTHORIZED)
+                .entity(Map.of("message", "Invalid credentials"))
+                .build();
     }
 
     @POST
     @Path("/logout")
     public Response logout() {
-        return notImplemented("Session logout");
+        return Response.ok(Map.of("message", "Logout successful")).build();
     }
 
     @GET
     @Path("/status")
     public Response status() {
-        return Response.ok(
-                Map.of(
-                        "enabled", true,
-                        "mode", "pending-java-port",
-                        "message", "Auth configuration will be mirrored from Python settings"
-                )
-        ).build();
+        return Response.ok(authService.status()).build();
     }
 }
 

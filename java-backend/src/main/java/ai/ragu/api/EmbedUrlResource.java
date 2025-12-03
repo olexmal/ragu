@@ -3,6 +3,8 @@ package ai.ragu.api;
 import ai.ragu.api.model.EmbedUrlRequest;
 import ai.ragu.api.model.TaskEnqueueResponse;
 import ai.ragu.api.model.TaskStatusResponse;
+import ai.ragu.security.RequiresAuth;
+import ai.ragu.security.RequiresWriteAuth;
 import ai.ragu.tasks.ScrapeTaskService;
 import io.smallrye.mutiny.Multi;
 import jakarta.inject.Inject;
@@ -19,6 +21,7 @@ import java.util.Map;
 @Path("/embed-url")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
+@RequiresAuth
 public class EmbedUrlResource extends BaseResource {
 
     private final ScrapeTaskService taskService;
@@ -29,6 +32,7 @@ public class EmbedUrlResource extends BaseResource {
     }
 
     @POST
+    @RequiresWriteAuth
     public Response enqueue(EmbedUrlRequest request) {
         TaskEnqueueResponse response = taskService.enqueue(request);
         return Response.accepted(response).build();
@@ -46,6 +50,7 @@ public class EmbedUrlResource extends BaseResource {
 
     @POST
     @Path("/cancel/{taskId}")
+    @RequiresWriteAuth
     public Response cancel(@PathParam("taskId") String taskId) {
         TaskStatusResponse response = taskService.cancel(taskId);
         return Response.accepted(response).build();
