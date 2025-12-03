@@ -25,7 +25,8 @@ class QdrantVectorServiceTest {
 
         assertEquals(1, results.size());
         assertEquals("doc-1", results.get(0).id());
-        assertTrue(service.listCollections().contains("docs-v1-0"));
+        assertTrue(service.listCollections().stream().anyMatch(summary -> summary.name().equals("docs-v1-0")));
+        assertEquals(1, service.getCollectionDocuments("docs", "1.0").size());
     }
 }
 

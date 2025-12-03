@@ -10,6 +10,12 @@ public interface VectorStore {
 
     VectorOperationResult deleteCollection(String collectionName, String version);
 
-    List<String> listCollections();
+    List<VectorDocument> getCollectionDocuments(String collectionName, String version);
+
+    List<CollectionSummary> listCollections();
+
+    VectorOperationResult deleteDocument(String collectionName, String version, String documentId);
+
+    record CollectionSummary(String name, int count) {}
 }
 

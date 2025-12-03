@@ -1,10 +1,13 @@
 package ai.ragu.vector;
 
+import jakarta.enterprise.context.ApplicationScoped;
+
 import java.text.Normalizer;
 
 /**
  * Mirrors the Python generate_collection_name helper so both stacks stay in sync.
  */
+@ApplicationScoped
 public class CollectionNameGenerator {
 
     public String generate(String baseName, String version) {

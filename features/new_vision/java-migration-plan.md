@@ -21,7 +21,7 @@
 - [x] **Progress APIs**: Create SSE/gRPC streaming endpoints mirroring `/embed-url/stream/<id>` behavior using Kafka progress events.
 
 ## Phase 5 – API Surface & Feature Parity
-- [ ] **API porting**: Reimplement Flask endpoints (`/embed`, `/embed-url`, `/collections`, `/settings`) as Quarkus resources under `/api`, ensuring request validation and rate limiting.
+- [x] **API porting**: Reimplement Flask endpoints (`/embed`, `/embed-url`, `/collections`, `/settings`) as Quarkus resources under `/api`, ensuring request validation and rate limiting.
 - [ ] **Auth & rate limiting**: Port authentication logic (`requires_auth`, `requires_write_auth`) and configure Quarkus rate limiting backed by Redis.
 
 ## Phase 6 – Data Migration & Dual Run

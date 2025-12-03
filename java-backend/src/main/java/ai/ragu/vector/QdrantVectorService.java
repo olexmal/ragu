@@ -49,8 +49,29 @@ public class QdrantVectorService implements VectorStore {
     }
 
     @Override
-    public List<String> listCollections() {
-        return new ArrayList<>(collections.keySet());
+    public List<VectorDocument> getCollectionDocuments(String collectionName, String version) {
+        String normalized = nameGenerator.generate(collectionName, version);
+        return new ArrayList<>(collections.getOrDefault(normalized, List.of()));
+    }
+
+    @Override
+    public List<CollectionSummary> listCollections() {
+        return collections.entrySet().stream()
+                .map(entry -> new CollectionSummary(entry.getKey(), entry.getValue().size()))
+                .toList();
+    }
+
+    @Override
+    public VectorOperationResult deleteDocument(String collectionName, String version, String documentId) {
+        String normalized = nameGenerator.generate(collectionName, version);
+        List<VectorDocument> docs = collections.get(normalized);
+        if (docs == null) {
+            return VectorOperationResult.failure("Collection not found");
+        }
+        boolean removed = docs.removeIf(doc -> doc.id().equals(documentId));
+        return removed
+                ? VectorOperationResult.ok("Removed document " + documentId)
+                : VectorOperationResult.failure("Document not found");
     }
 
     private double similarity(List<Double> a, List<Double> b) {
