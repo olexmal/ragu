@@ -17,8 +17,8 @@
 - [x] **RAG service**: Implement LangChain4j-based retrieval-augmented generation pipeline (`rag/RagService.java`) reusing prompt logic from `src/query.py`, with a REST endpoint `/query`.
 
 ## Phase 4 – Background Tasks & Messaging
-- [ ] **Scrape pipeline**: Replace Celery with Kafka by defining topics (`scrape-requests`, `scrape-progress`) and implementing Quarkus reactive consumers/producers (`tasks/ScrapeTaskProcessor.java`).
-- [ ] **Progress APIs**: Create SSE/gRPC streaming endpoints mirroring `/embed-url/stream/<id>` behavior using Kafka progress events.
+- [x] **Scrape pipeline**: Replace Celery with Kafka by defining topics (`scrape-requests`, `scrape-progress`) and implementing Quarkus reactive consumers/producers (`tasks/ScrapeTaskProcessor.java`).
+- [x] **Progress APIs**: Create SSE/gRPC streaming endpoints mirroring `/embed-url/stream/<id>` behavior using Kafka progress events.
 
 ## Phase 5 – API Surface & Feature Parity
 - [ ] **API porting**: Reimplement Flask endpoints (`/embed`, `/embed-url`, `/collections`, `/settings`) as Quarkus resources under `/api`, ensuring request validation and rate limiting.
