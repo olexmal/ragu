@@ -13,8 +13,8 @@
 - [x] **Embedding service**: Implement DJL/LangChain4j embedding provider with Redis caching (`embedding/EmbeddingService.java`) and expose gRPC endpoints for internal consumers.
 
 ## Phase 3 – Vector & Query Layer
-- [ ] **Vector adapter**: Build Qdrant client wrapper (`vector/QdrantVectorService.java`) that mirrors the Python `generate_collection_name` logic for upsert/search.
-- [ ] **RAG service**: Implement LangChain4j-based retrieval-augmented generation pipeline (`rag/RagService.java`) reusing prompt logic from `src/query.py`, with a REST endpoint `/query`.
+- [x] **Vector adapter**: Build Qdrant client wrapper (`vector/QdrantVectorService.java`) that mirrors the Python `generate_collection_name` logic for upsert/search.
+- [x] **RAG service**: Implement LangChain4j-based retrieval-augmented generation pipeline (`rag/RagService.java`) reusing prompt logic from `src/query.py`, with a REST endpoint `/query`.
 
 ## Phase 4 – Background Tasks & Messaging
 - [ ] **Scrape pipeline**: Replace Celery with Kafka by defining topics (`scrape-requests`, `scrape-progress`) and implementing Quarkus reactive consumers/producers (`tasks/ScrapeTaskProcessor.java`).

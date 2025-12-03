@@ -2,16 +2,14 @@ package ai.ragu.api;
 
 import ai.ragu.api.model.QueryRequest;
 import ai.ragu.api.model.QueryResponse;
-import ai.ragu.api.model.QueryStats;
-import ai.ragu.api.model.SourceDocument;
+import ai.ragu.rag.RagService;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-
-import java.util.List;
 
 /**
  * Mirrors /query, /query/multi-version, and /query/compare routes.
@@ -21,15 +19,16 @@ import java.util.List;
 @Produces(MediaType.APPLICATION_JSON)
 public class QueryResource extends BaseResource {
 
+    private final RagService ragService;
+
+    @Inject
+    public QueryResource(RagService ragService) {
+        this.ragService = ragService;
+    }
+
     @POST
     public Response query(QueryRequest request) {
-        QueryResponse response = new QueryResponse(
-                "Answer placeholder until LangChain4j pipeline is connected",
-                request.query(),
-                List.of(new SourceDocument("No documents retrieved (stub)", null)),
-                1,
-                new QueryStats(0d, 0d, null, null, null, null, null, null)
-        );
+        QueryResponse response = ragService.handleQuery(request);
         return Response.ok(response).build();
     }
 
