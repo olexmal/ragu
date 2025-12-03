@@ -4,7 +4,7 @@
 
 **RAGU (Retrieval-Augmented Generation Universal) - A modern, local RAG application with a beautiful web interface**
 
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
+[![Java](https://img.shields.io/badge/Java-21+-orange.svg)](https://adoptium.net/)
 [![Angular](https://img.shields.io/badge/Angular-19+-red.svg)](https://angular.io/)
 [![Ollama](https://img.shields.io/badge/Ollama-Required-orange.svg)](https://ollama.ai/)
 [![License](https://img.shields.io/badge/License-See%20LICENSE-green.svg)](LICENSE)
@@ -107,11 +107,12 @@ RAGU (Retrieval-Augmented Generation Universal) is a powerful, privacy-focused d
 
 Before you begin, ensure you have:
 
-- **Python 3.8+** installed
-- **Node.js 18+** and **npm** (for web UI)
-- **[Ollama](https://ollama.ai/)** installed and running
-- **Minimum 8GB RAM** (16GB+ recommended)
-- **10GB+ free disk space** for models and vector database
+- **Java 21** (Temurin, Corretto or Oracle) – `java -version`
+- **Maven** (the wrapper `./mvnw` is included, no global install required)
+- **Node.js 18+** and **npm** (for the Angular UI)
+- **[Ollama](https://ollama.ai/)** installed and running locally
+- **Docker & Docker Compose** (for containerized deployments)
+- **Minimum 8GB RAM** (16GB+ recommended) and **10GB+ disk space** for models/vector data
 
 ---
 
@@ -120,42 +121,44 @@ Before you begin, ensure you have:
 ### 1. Install Ollama
 
 ```bash
-# Install Ollama
 curl -fsSL https://ollama.ai/install.sh | sh
-
-# Verify installation
 ollama --version
 ```
 
 ### 2. Download Required Models
 
 ```bash
-# Download LLM for generation (~4GB)
 ollama pull mistral
-
-# Download embedding model (lightweight)
 ollama pull nomic-embed-text
-
-# Verify models
 ollama list
 ```
 
-### 3. Set Up Backend
+### 3. Build the Java Backend
 
 ```bash
-# Navigate to project directory
-cd ragu
-
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install Python dependencies
-pip install --upgrade pip
-pip install -r requirements.txt
+cd java-backend
+./mvnw clean package
 ```
 
-### 4. Set Up Web UI
+This produces `target/quarkus-app/` containing the runnable application.
+
+### 4. Run the Backend (Development)
+
+```bash
+cd java-backend
+./mvnw quarkus:dev
+```
+
+The API will be available at http://localhost:8080 with live reload.
+
+### 5. Run the Backend (Production Style)
+
+```bash
+cd java-backend
+java -jar target/quarkus-app/quarkus-run.jar
+```
+
+### 6. Set Up the Web UI
 
 ```bash
 # Navigate to web UI directory
@@ -171,54 +174,39 @@ npm run build
 npm start
 ```
 
-### 5. Configure Environment
+### 7. Configure Environment (optional)
 
 ```bash
-# Copy example environment file
 cp .env.example .env
-
-# Edit .env with your configuration (optional - defaults work for most cases)
+# update values such as AUTH credentials, Redis URL, etc.
 ```
 
-### 6. Start the System
+### 8. Run the Full Stack with Docker Compose
 
-**Option A: Docker Compose (Recommended)**
 ```bash
-# Development mode (with hot reload)
-./scripts/docker-start.sh dev
+# Ensure the backend is packaged first
+cd java-backend
+./mvnw package -DskipTests
+cd ..
 
-# Production mode (detached)
-./scripts/docker-start.sh prod
+# Start backend + redis
+docker compose up --build backend redis
 
-# With containerized Ollama
-./scripts/docker-start.sh dev container
+# Start frontend (development) in another terminal
+docker compose up frontend-dev
 ```
 
-**Option B: Start Backend Only (API)**
+For a simple production-like stack:
+
 ```bash
-# Using helper script (automatically uses Gunicorn in production)
-./scripts/start-rag-server.sh
-
-# Or manually with Gunicorn (recommended for production)
-gunicorn -c gunicorn_config.py "src.app:app"
-
-# Or manually with Flask development server (development only)
-python3 -c "from src.app import app; app.run(host='localhost', port=8080)"
+docker compose up --build backend frontend-prod redis -d
 ```
 
-**Option C: Start with Web UI**
-```bash
-# Terminal 1: Start backend API
-./scripts/start-rag-server.sh
+**Service URLs**
 
-# Terminal 2: Start web UI (development)
-cd web-ui
-npm start
-```
-
-**Service URLs:**
-- Docker: Frontend Dev `http://localhost:4200`, Frontend Prod `http://localhost:80`, Backend API `http://localhost:8080`
-- Local: API `http://localhost:8080`, Web UI `http://localhost:4200` (development)
+- Backend API: http://localhost:8080
+- Frontend (dev): http://localhost:4200
+- Frontend (prod): http://localhost:80
 
 ---
 
@@ -268,38 +256,14 @@ curl -X POST http://localhost:8080/query \
   }'
 ```
 
-### CLI Usage
-
-```bash
-# Embed a file
-python3 src/cli.py embed path/to/documentation.pdf --version 1.2.3
-
-# Query documentation
-python3 src/cli.py query "How does UserService work?" --version 1.2.3
-
-# List collections
-python3 src/cli.py list-collections
-
-# Check system status
-python3 src/cli.py status
-```
-
----
-
 ## 🏗️ Project Structure
 
 ```
 ragu/
-├── src/                          # Backend Python code
-│   ├── app.py                   # Flask API server
-│   ├── cli.py                   # Command-line interface
-│   ├── embed.py                 # Document embedding logic
-│   ├── query.py                 # Query processing
-│   ├── get_vector_db.py         # Vector database management
-│   ├── settings.py              # Settings management
-│   ├── llm_providers.py         # LLM provider abstraction
-│   ├── confluence.py            # Confluence integration
-│   └── ...
+├── java-backend/                # Quarkus backend service
+│   ├── src/main/java/ai/ragu    # API + services
+│   ├── src/main/resources/      # application.properties
+│   └── src/main/docker/         # Container definitions
 ├── web-ui/                      # Frontend Angular application
 │   ├── src/
 │   │   ├── app/
@@ -312,16 +276,9 @@ ragu/
 │   │   │   └── shared/          # Shared components
 │   │   └── ...
 │   └── ...
-├── scripts/                     # Utility scripts
-│   ├── start-rag-server.sh      # Server startup
-│   ├── embed-commonmodel-docs.sh # Maven integration
-│   └── ...
 ├── docs/                        # Documentation
 │   ├── API_REFERENCE.md         # Complete API documentation
 │   └── DEVELOPER_GUIDE.md      # Developer guide
-├── tests/                       # Test files
-├── chroma/                      # ChromaDB persistence
-├── requirements.txt             # Python dependencies
 ├── .env.example                 # Environment configuration example
 └── README.md                    # This file
 ```
@@ -335,28 +292,26 @@ ragu/
 Key configuration options in `.env`:
 
 ```bash
-# Vector Database
-CHROMA_PATH=./chroma
-COLLECTION_NAME=common-model-docs
+# Backend dependencies
+RAGU_DEPENDENCIES_REDIS=redis://localhost:6379/0
+RAGU_DEPENDENCIES_KAFKA=localhost:29092
+RAGU_DEPENDENCIES_QDRANT=http://localhost:6333
 
-# Models
-LLM_MODEL=mistral
-TEXT_EMBEDDING_MODEL=nomic-embed-text
+# HTTP
+QUARKUS_HTTP_PORT=8080
+QUARKUS_HTTP_HOST=0.0.0.0
 
-# API Server
-API_PORT=8080
-API_HOST=localhost
-FLASK_DEBUG=False
+# Authentication
+RAGU_AUTH_ENABLED=false
+RAGU_AUTH_USERNAME=admin
+RAGU_AUTH_PASSWORD=changeme
+RAGU_AUTH_API_KEY=unset
+RAGU_RATE_LIMIT_READ_PER_MINUTE=60
+RAGU_RATE_LIMIT_WRITE_PER_MINUTE=30
 
-# Authentication (Optional)
-AUTH_ENABLED=false
-AUTH_REQUIRED_FOR=write  # Options: 'all', 'write', 'none'
-API_KEY=
-API_KEY_HEADER=X-API-Key
-
-# Session Security
-SECRET_KEY=your-secret-key-here
-SESSION_SECURE=false  # Set to true for HTTPS
+# Document processing
+RAGU_DOCUMENT_CHUNK_SIZE=1000
+RAGU_DOCUMENT_CHUNK_OVERLAP=200
 ```
 
 ### Web UI Configuration
@@ -424,20 +379,16 @@ For complete API documentation, see [API_REFERENCE.md](docs/API_REFERENCE.md).
 ## 🧪 Testing
 
 ```bash
-# Run unit tests
-./scripts/run-tests.sh
+# Backend unit/integration tests
+cd java-backend
+./mvnw test
 
-# Run all tests including integration tests (requires Ollama)
-RUN_INTEGRATION_TESTS=1 ./scripts/run-tests.sh --integration
-
-# Or use pytest directly
-pytest tests/                    # Run all tests
-pytest tests/ -m unit            # Run only unit tests
-pytest tests/ -m integration     # Run only integration tests
-pytest tests/ --cov=src          # With coverage report
+# Frontend tests
+cd web-ui
+npm test
 ```
 
-Test coverage report is generated in `htmlcov/index.html` after running tests with coverage.
+Quarkus generates reports under `java-backend/target/surefire-reports` and Angular coverage reports under `web-ui/coverage`.
 
 ---
 
@@ -454,10 +405,10 @@ Test coverage report is generated in `htmlcov/index.html` after running tests wi
 - Run `ollama pull mistral` and `ollama pull nomic-embed-text`
 - Verify with `ollama list`
 
-**Import errors**
-- Ensure virtual environment is activated
-- Run `pip install -r requirements.txt`
-- Check Python version: `python3 --version` (requires 3.8+)
+**Backend build errors**
+- Run `cd java-backend && ./mvnw clean package -DskipTests`
+- Ensure Java 21 is installed and on your PATH (`java -version`)
+- Delete `java-backend/target` if the build cache is corrupted
 
 **Port already in use**
 - Change `API_PORT` in `.env` file
@@ -470,8 +421,8 @@ Test coverage report is generated in `htmlcov/index.html` after running tests wi
 
 **Confluence import fails**
 - Verify Confluence settings are configured correctly
-- Check that `confluence-markdown-exporter` is installed: `pip install confluence-markdown-exporter==1.0.4`
 - Ensure API token has read permissions for the page
+- Check backend logs for detailed error output
 
 ---
 
@@ -481,11 +432,9 @@ Test coverage report is generated in `htmlcov/index.html` after running tests wi
 
 **Backend:**
 ```bash
-# Activate virtual environment
-source venv/bin/activate
-
-# Run with auto-reload
-FLASK_DEBUG=True python3 -c "from src.app import app; app.run(host='localhost', port=8080, debug=True)"
+cd java-backend
+./mvnw quarkus:dev
+# API available at http://localhost:8080 with live reload
 ```
 
 **Frontend:**
@@ -499,13 +448,9 @@ npm start
 
 **Backend:**
 ```bash
-# No build step needed - Python runs directly
-# Use production WSGI server (Gunicorn is included in requirements.txt):
-# Using configuration file (recommended)
-gunicorn -c gunicorn_config.py "src.app:app"
-
-# Or with inline configuration
-gunicorn -w 4 -b 0.0.0.0:8080 --timeout 30 "src.app:app"
+cd java-backend
+./mvnw clean package
+java -jar target/quarkus-app/quarkus-run.jar
 ```
 
 **Frontend:**

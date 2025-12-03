@@ -723,8 +723,9 @@ curl http://localhost:8080/history/export?format=csv > history.csv
 ### With Authentication
 
 ```bash
-# Generate API key first
-./scripts/generate-api-key.sh
+# Configure an API key (e.g., in .env or docker compose)
+export RAGU_AUTH_ENABLED=true
+export RAGU_AUTH_API_KEY=super-secret-key
 
 # Use in requests
 curl -X POST http://localhost:8080/embed \

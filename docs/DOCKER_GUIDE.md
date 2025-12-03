@@ -17,16 +17,12 @@ docker compose version
 
 ### Development Mode
 
-Start all services with hot reload:
 ```bash
-./scripts/docker-start.sh dev
+cd java-backend
+./mvnw clean package -DskipTests
+cd ..
+docker compose up --build backend redis frontend-dev
 ```
-
-This starts:
-- Backend API (Flask dev server with hot reload)
-- Frontend (Angular dev server)
-- Redis (for Celery and rate limiting)
-- Celery Worker (background jobs)
 
 Access:
 - Frontend: http://localhost:4200
@@ -34,16 +30,12 @@ Access:
 
 ### Production Mode
 
-Start all services in production mode:
 ```bash
-./scripts/docker-start.sh prod
+cd java-backend
+./mvnw clean package -DskipTests
+cd ..
+docker compose up --build backend frontend-prod redis -d
 ```
-
-This starts:
-- Backend API (Gunicorn with multiple workers)
-- Frontend (Nginx serving built Angular app)
-- Redis
-- Celery Worker
 
 Access:
 - Frontend: http://localhost:80
@@ -56,13 +48,10 @@ Access:
 Use Ollama running on your host machine:
 
 1. Ensure Ollama is running on your host
-2. Start services normally:
+2. Configure `OLLAMA_URL` (or `OLLAMA_BASE_URL`) in `.env`:
    ```bash
-   ./scripts/docker-start.sh dev
-   ```
-3. Configure `OLLAMA_URL` in `.env`:
-   ```bash
-   OLLAMA_URL=http://host.docker.internal:11434
+   OLLAMA_URL=http://host.docker.internal:11434   # macOS/Windows
+   OLLAMA_URL=http://172.17.0.1:11434             # Linux Docker bridge
    ```
 
 ### Option 2: Containerized Ollama
@@ -70,7 +59,7 @@ Use Ollama running on your host machine:
 Run Ollama in a Docker container:
 
 ```bash
-./scripts/docker-start.sh dev container
+docker compose --profile with-ollama up
 ```
 
 This will:
@@ -84,101 +73,40 @@ This will:
 
 ### Core Services
 
-1. **backend** - Flask/Gunicorn API server
+1. **backend** - Quarkus JVM API server
    - Port: 8080
    - Health: http://localhost:8080/health
 
-2. **redis** - Redis server for Celery and rate limiting
+2. **redis** - Redis server for rate limiting/cache (optional but enabled by default)
    - Port: 6379
    - Data persisted in `redis_data` volume
 
-3. **celery-worker** - Background job processor
-   - Processes web scraping and other async tasks
-   - Connects to Redis for job queue
-
-4. **frontend-dev** - Angular development server
+3. **frontend-dev** - Angular development server
    - Port: 4200
    - Hot reload enabled
    - Only active in dev mode
 
-5. **frontend-prod** - Nginx serving built Angular app
+4. **frontend-prod** - Nginx serving built Angular app
    - Port: 80
    - Proxies `/api/*` to backend
    - Only active in prod mode
 
-### Optional Services
-
-6. **ollama** - Ollama LLM server (optional)
+5. **ollama** (optional profile `with-ollama`)
    - Port: 11434
    - Only active with `--profile with-ollama`
    - Models persisted in `ollama_data` volume
 
 ## Docker Compose Files
 
-### Base Configuration
+All services are defined in `docker-compose.yml`. Profiles are used for optional services (e.g., `--profile with-ollama`). Development vs production behavior is controlled by the targets you `docker compose up` (e.g., `frontend-dev` vs `frontend-prod`) and the environment variables you pass.
 
-`docker-compose.yml` - Base configuration for all services
-- Service definitions
-- Volume mounts
-- Network configuration
-- Health checks
+## Helper Commands
 
-### Development Overrides
-
-`docker-compose.dev.yml` - Development-specific settings
-- Hot reload for backend (mounts `src/` directory)
-- Development frontend service
-- Debug logging enabled
-
-### Production Overrides
-
-`docker-compose.prod.yml` - Production-specific settings
-- Gunicorn for backend
-- Production frontend with Nginx
-- Resource limits
-- Optimized settings
-
-## Helper Scripts
-
-### Start Services
-
-```bash
-# Development mode
-./scripts/docker-start.sh dev
-
-# Production mode
-./scripts/docker-start.sh prod
-
-# With containerized Ollama
-./scripts/docker-start.sh dev container
-```
-
-### Stop Services
-
-```bash
-./scripts/docker-stop.sh
-```
-
-### View Logs
-
-```bash
-# All services
-./scripts/docker-logs.sh
-
-# Specific service
-./scripts/docker-logs.sh backend
-
-# Follow logs
-./scripts/docker-logs.sh backend -f
-```
-
-### Reset Everything
-
-**WARNING:** This deletes all data volumes!
-
-```bash
-./scripts/docker-reset.sh
-```
+- Start dev stack: `docker compose up --build backend redis frontend-dev`
+- Start prod stack: `docker compose up --build backend frontend-prod redis -d`
+- Include Ollama container: `docker compose --profile with-ollama up`
+- Stop all services: `docker compose down`
+- Tail logs: `docker compose logs -f backend`
 
 ## Environment Variables
 
@@ -188,26 +116,19 @@ cp .env.docker .env
 ```
 
 Key variables:
-- `OLLAMA_URL` - Ollama server URL
-- `REDIS_URL` - Redis connection string
-- `FLASK_DEBUG` - Enable debug mode (True/False)
-- `USE_REDIS_RATE_LIMITING` - Use Redis for rate limiting (true/false)
+- `OLLAMA_BASE_URL` - Ollama server URL (default `http://host.docker.internal:11434`)
+- `REDIS_URL` - Redis connection string for the backend
+- `AUTH_ENABLED` / `AUTH_USERNAME` / `AUTH_PASSWORD` / `AUTH_API_KEY`
+- `RATE_LIMIT_READ` / `RATE_LIMIT_WRITE`
 
 ## Data Persistence
 
-All data is persisted in Docker volumes:
+Current named volumes:
 
-- `chroma_data` - ChromaDB vector database
-- `redis_data` - Redis data
-- `logs` - Application logs
-- `rag_settings` - Application settings
-- `rag_cache` - Query cache data
-- `rag_history` - Query history data
-- `rag_monitoring` - Monitoring and analytics data
-- `ollama_data` - Ollama models (if containerized)
-- `temp_files` - Temporary upload files
+- `redis_data` - Redis persistence
+- `ollama_data` - Ollama models (only when the optional Ollama container is enabled)
 
-Volumes persist across container restarts. To remove all data, use `./scripts/docker-reset.sh`.
+Use `docker compose down -v` to remove volumes.
 
 ## Manual Docker Compose Commands
 
@@ -215,52 +136,44 @@ Volumes persist across container restarts. To remove all data, use `./scripts/do
 
 ```bash
 # Development
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml --profile dev up
+docker compose up --build backend redis frontend-dev
 
 # Production
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml --profile prod up -d
+docker compose up --build backend frontend-prod redis -d
 
-# With Ollama
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml --profile dev --profile with-ollama up
+# With Ollama profile
+docker compose --profile with-ollama up
 ```
 
 ### Stop Services
 
 ```bash
-docker-compose down
+docker compose down
 ```
 
 ### View Logs
 
 ```bash
 # All services
-docker-compose logs -f
+docker compose logs -f
 
 # Specific service
-docker-compose logs -f backend
+docker compose logs -f backend
 ```
 
 ### Rebuild Images
 
 ```bash
-# Rebuild all
-docker-compose build
-
-# Rebuild specific service
-docker-compose build backend
-
-# Rebuild without cache
-docker-compose build --no-cache backend
+docker compose build backend
+docker compose build frontend-dev
+docker compose build --no-cache backend
 ```
 
 ### Scale Services
 
 ```bash
-# Scale backend workers (production)
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml --profile prod up -d --scale backend=3
-
-# Scale Celery workers
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml --profile prod up -d --scale celery-worker=2
+# Scale backend replicas (production)
+docker compose up -d --scale backend=3
 ```
 
 ## Troubleshooting
@@ -283,19 +196,19 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml --profile prod u
 
 3. View service logs:
    ```bash
-   ./scripts/docker-logs.sh backend
+   docker compose logs -f backend
    ```
 
 ### Backend Can't Connect to Redis
 
 1. Check Redis is running:
    ```bash
-   docker-compose ps redis
+   docker compose ps redis
    ```
 
 2. Check Redis logs:
    ```bash
-   ./scripts/docker-logs.sh redis
+   docker compose logs -f redis
    ```
 
 3. Verify `REDIS_URL` in `.env`:
@@ -333,44 +246,22 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml --profile prod u
 
 **WSL2 with Ollama:**
 
-If running Ollama in WSL2 (not Windows), Docker containers can't reach `localhost:11434` directly. You need to configure Ollama to listen on all interfaces:
-
-1. Run the configuration script:
-   ```bash
-   ./scripts/configure-ollama-wsl.sh
-   ```
-
-2. Find your WSL IP address:
-   ```bash
-   ip addr show eth0 | grep "inet " | awk '{print $2}' | cut -d/ -f1
-   ```
-
-3. Update `.env` with your WSL IP:
-   ```bash
-   OLLAMA_BASE_URL=http://172.20.x.x:11434
-   ```
-
-4. Restart containers:
-   ```bash
-   docker compose restart backend celery-worker
-   ```
-
-See [QUICKSTART.md](../QUICKSTART.md#configuring-ollama-in-wsl-for-docker-containers) for detailed instructions.
+If running Ollama inside WSL2, configure it to listen on all interfaces (`/etc/systemd/system/ollama.service` → `Environment="OLLAMA_HOST=0.0.0.0"`), restart the service, grab the WSL IP (`ip addr show eth0 | grep "inet "`), set `OLLAMA_BASE_URL=http://<WSL_IP>:11434`, and `docker compose restart backend`.
 
 **Containerized Ollama:**
 1. Check Ollama container is running:
    ```bash
-   docker-compose ps ollama
+   docker compose ps ollama
    ```
 
 2. Check Ollama logs:
    ```bash
-   ./scripts/docker-logs.sh ollama
+   docker compose logs -f ollama
    ```
 
 3. Verify models are pulled:
    ```bash
-   docker-compose exec ollama ollama list
+   docker compose exec ollama ollama list
    ```
 
 ### Volume Permission Issues
@@ -379,31 +270,33 @@ If you encounter permission errors with volumes:
 
 ```bash
 # Fix ownership (Linux)
-sudo chown -R $USER:$USER chroma logs .rag_settings
+sudo chown -R $USER:$USER logs web-ui/dist
 
 # Or run containers with your user ID
-docker-compose run --user $(id -u):$(id -g) backend
+docker compose run --user $(id -u):$(id -g) backend
 ```
 
 ## Development Workflow
 
 ### Hot Reload
 
-In development mode, code changes are automatically reloaded:
+For the fastest feedback loop run services locally:
 
-- **Backend**: Flask dev server reloads on Python file changes
-- **Frontend**: Angular dev server reloads on TypeScript/HTML changes
+- **Backend**: `cd java-backend && ./mvnw quarkus:dev`
+- **Frontend**: `cd web-ui && npm start`
+
+Docker is still useful for bringing up supporting services (Redis, Ollama).
 
 ### Debugging
 
 1. Attach to running container:
    ```bash
-   docker-compose exec backend bash
+   docker compose exec backend sh
    ```
 
 2. View real-time logs:
    ```bash
-   ./scripts/docker-logs.sh -f
+   docker compose logs -f backend
    ```
 
 3. Check service health:
@@ -416,35 +309,29 @@ In development mode, code changes are automatically reloaded:
 ### Build Images
 
 ```bash
-# Build all images
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml build
-
-# Build specific service
-docker-compose build frontend-prod
+cd java-backend
+./mvnw clean package -DskipTests
+cd ..
+docker compose build backend frontend-prod
 ```
 
 ### Start Production Services
 
 ```bash
-./scripts/docker-start.sh prod
+docker compose up --build backend frontend-prod redis -d
 ```
 
 ### Update Services
 
 ```bash
-# Pull latest code
 git pull
-
-# Rebuild and restart
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml --profile prod up -d --build
+cd java-backend && ./mvnw clean package -DskipTests && cd ..
+docker compose up --build backend frontend-prod redis -d
 ```
 
 ### Backup Data
 
 ```bash
-# Backup ChromaDB
-docker run --rm -v ragu_chroma_data:/data -v $(pwd):/backup alpine tar czf /backup/chroma_backup.tar.gz /data
-
 # Backup Redis
 docker run --rm -v ragu_redis_data:/data -v $(pwd):/backup alpine tar czf /backup/redis_backup.tar.gz /data
 ```
@@ -452,9 +339,6 @@ docker run --rm -v ragu_redis_data:/data -v $(pwd):/backup alpine tar czf /backu
 ### Restore Data
 
 ```bash
-# Restore ChromaDB
-docker run --rm -v ragu_chroma_data:/data -v $(pwd):/backup alpine tar xzf /backup/chroma_backup.tar.gz -C /
-
 # Restore Redis
 docker run --rm -v ragu_redis_data:/data -v $(pwd):/backup alpine tar xzf /backup/redis_backup.tar.gz -C /
 ```
@@ -472,12 +356,12 @@ See [docs/SCALABILITY_ROADMAP.md](docs/SCALABILITY_ROADMAP.md) for details.
 ## Best Practices
 
 1. **Use volumes for persistence**: Never store data in containers
-2. **Set resource limits**: Use `docker-compose.prod.yml` for production
+2. **Set resource limits**: Configure `deploy.resources` and `restart` policies in `docker-compose.yml`
 3. **Regular backups**: Backup volumes before major updates
-4. **Monitor logs**: Use `docker-logs.sh` to monitor service health
+4. **Monitor logs**: `docker compose logs -f backend`
 5. **Health checks**: All services have health check endpoints
 6. **Environment variables**: Use `.env` file for configuration
-7. **Separate dev/prod**: Use different compose files for different environments
+7. **Separate dev/prod**: Use `frontend-dev` vs `frontend-prod` services and appropriate env variables
 
 ## Additional Resources
 

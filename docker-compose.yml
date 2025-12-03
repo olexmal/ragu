@@ -1,31 +1,27 @@
 services:
   backend:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ./java-backend
+      dockerfile: src/main/docker/Dockerfile.jvm
     container_name: ragu-backend
     ports:
       - "${API_PORT:-8080}:8080"
-    volumes:
-      - chroma_data:/app/chroma
-      - logs:/app/logs
-      - rag_settings:/app/.rag_settings
-      - temp_files:/app/_temp
-      - rag_cache:/app/.rag_cache
-      - rag_history:/app/.rag_history
-      - rag_monitoring:/app/.rag_monitoring
     environment:
-      - REDIS_URL=redis://redis:6379/0
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
-      - CHROMA_PATH=/app/chroma
-      - LOG_DIR=/app/logs
-      - CACHE_DIR=/app/.rag_cache
-      - HISTORY_DIR=/app/.rag_history
-      - MONITORING_DIR=/app/.rag_monitoring
-      - API_HOST=0.0.0.0
-      - API_PORT=8080
-      - FLASK_DEBUG=${FLASK_DEBUG:-False}
-      - USE_REDIS_RATE_LIMITING=${USE_REDIS_RATE_LIMITING:-false}
+      - QUARKUS_HTTP_PORT=8080
+      - QUARKUS_PROFILE=${QUARKUS_PROFILE:-prod}
+      - RAGU_DEPENDENCIES_REDIS=${REDIS_URL:-redis://redis:6379/0}
+      - RAGU_DEPENDENCIES_KAFKA=${KAFKA_BOOTSTRAP:-localhost:29092}
+      - RAGU_DEPENDENCIES_QDRANT=${QDRANT_URL:-http://qdrant:6333}
+      - QUARKUS_REDIS_HOST=redis
+      - QUARKUS_REDIS_PORT=6379
+      - RAGU_AUTH_ENABLED=${AUTH_ENABLED:-false}
+      - RAGU_AUTH_USERNAME=${AUTH_USERNAME:-admin}
+      - RAGU_AUTH_PASSWORD=${AUTH_PASSWORD:-changeme}
+      - RAGU_AUTH_API_KEY=${AUTH_API_KEY:-unset}
+      - RAGU_RATE_LIMIT_READ_PER_MINUTE=${RATE_LIMIT_READ:-60}
+      - RAGU_RATE_LIMIT_WRITE_PER_MINUTE=${RATE_LIMIT_WRITE:-30}
+      - RAGU_KAFKA_SCRAPE_REQUESTS_TOPIC=${SCRAPE_REQUESTS_TOPIC:-scrape-requests}
+      - RAGU_KAFKA_SCRAPE_PROGRESS_TOPIC=${SCRAPE_PROGRESS_TOPIC:-scrape-progress}
     depends_on:
       redis:
         condition: service_healthy
@@ -52,37 +48,6 @@ services:
       interval: 10s
       timeout: 3s
       retries: 3
-    networks:
-      - ragu-network
-    restart: unless-stopped
-
-  celery-worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: ragu-celery-worker
-    command: celery -A src.celery_app worker --loglevel=info --concurrency=2
-    volumes:
-      - chroma_data:/app/chroma
-      - logs:/app/logs
-      - rag_settings:/app/.rag_settings
-      - temp_files:/app/_temp
-      - rag_cache:/app/.rag_cache
-      - rag_history:/app/.rag_history
-      - rag_monitoring:/app/.rag_monitoring
-    environment:
-      - REDIS_URL=redis://redis:6379/0
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
-      - CHROMA_PATH=/app/chroma
-      - LOG_DIR=/app/logs
-      - CACHE_DIR=/app/.rag_cache
-      - HISTORY_DIR=/app/.rag_history
-      - MONITORING_DIR=/app/.rag_monitoring
-    depends_on:
-      redis:
-        condition: service_healthy
-      backend:
-        condition: service_healthy
     networks:
       - ragu-network
     restart: unless-stopped
@@ -145,23 +110,9 @@ services:
     restart: unless-stopped
 
 volumes:
-  chroma_data:
-    driver: local
   redis_data:
     driver: local
-  logs:
-    driver: local
-  rag_settings:
-    driver: local
   ollama_data:
-    driver: local
-  temp_files:
-    driver: local
-  rag_cache:
-    driver: local
-  rag_history:
-    driver: local
-  rag_monitoring:
     driver: local
 
 networks:
