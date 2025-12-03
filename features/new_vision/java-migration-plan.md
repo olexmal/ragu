@@ -1,12 +1,12 @@
 # Java 21 Migration Plan
 
 ## Phase 0 – Preparation & Architecture
-- [ ] **Audit codebase**: Inventory current Flask endpoints, Celery workflows, LangChain usage, and Chroma data under `src/` to understand parity requirements.
-- [ ] **Target stack**: Finalize infrastructure stack (Quarkus, LangChain4j, Kafka, Redis, Qdrant) and document decisions in `docs/ARCHITECTURE_JAVA.md` (new file).
+- [x] **Audit codebase**: Inventory current Flask endpoints, Celery workflows, LangChain usage, and Chroma data under `src/` to understand parity requirements.
+- [x] **Target stack**: Finalize infrastructure stack (Quarkus, LangChain4j, Kafka, Redis, Qdrant) and document decisions in `docs/ARCHITECTURE_JAVA.md` (new file).
 
 ## Phase 1 – Quarkus Skeleton & Core Config
-- [ ] **Bootstrap Quarkus**: Create a new Quarkus 3.x project (`/java-backend`) with RESTEasy Reactive, LangChain4j, Redis, Kafka, and Qdrant extensions configured via `application.properties`.
-- [ ] **Shared models**: Define DTOs/records mirroring Python payloads (e.g., `EmbedRequest`, `QueryResponse`).
+- [x] **Bootstrap Quarkus**: Create a new Quarkus 3.x project (`/java-backend`) with RESTEasy Reactive, LangChain4j, Redis, Kafka, and Qdrant extensions configured via `application.properties`.
+- [x] **Shared models**: Define DTOs/records mirroring Python payloads (e.g., `EmbedRequest`, `QueryResponse`).
 
 ## Phase 2 – Document & Embedding Services
 - [ ] **Document processor**: Implement Apache Tika + OpenNLP based document chunker (`document-processor/DocumentProcessor.java`).
