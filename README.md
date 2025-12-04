@@ -110,6 +110,7 @@ Before you begin, ensure you have:
 - **Java 21** (Temurin, Corretto or Oracle) – `java -version`
 - **Maven** (the wrapper `./mvnw` is included, no global install required)
 - **Node.js 18+** and **npm** (for the Angular UI)
+- **Redis 7+** (for sessions, settings, history, favorites, and caching) – `redis-cli ping`
 - **[Ollama](https://ollama.ai/)** installed and running locally
 - **Docker & Docker Compose** (for containerized deployments)
 - **Minimum 8GB RAM** (16GB+ recommended) and **10GB+ disk space** for models/vector data
@@ -118,14 +119,35 @@ Before you begin, ensure you have:
 
 ## 🚀 Quick Start
 
-### 1. Install Ollama
+### 1. Install Redis
+
+Redis is required for sessions, settings, history, favorites, and caching.
+
+```bash
+# macOS (via Homebrew)
+brew install redis
+brew services start redis
+
+# Ubuntu/Debian
+sudo apt update && sudo apt install redis-server -y
+sudo systemctl enable redis-server
+sudo systemctl start redis-server
+
+# Docker
+docker run -d --name redis -p 6379:6379 redis:7-alpine
+
+# Verify
+redis-cli ping  # Should return: PONG
+```
+
+### 2. Install Ollama
 
 ```bash
 curl -fsSL https://ollama.ai/install.sh | sh
 ollama --version
 ```
 
-### 2. Download Required Models
+### 3. Download Required Models
 
 ```bash
 ollama pull mistral
@@ -133,7 +155,7 @@ ollama pull nomic-embed-text
 ollama list
 ```
 
-### 3. Build the Java Backend
+### 4. Build the Java Backend
 
 ```bash
 cd java-backend
@@ -142,23 +164,23 @@ cd java-backend
 
 This produces `target/quarkus-app/` containing the runnable application.
 
-### 4. Run the Backend (Development)
+### 5. Run the Backend (Development)
 
 ```bash
 cd java-backend
 ./mvnw quarkus:dev
 ```
 
-The API will be available at http://localhost:8080 with live reload.
+The API will be available at http://localhost:8080 with live reload. Ensure Redis is running on `localhost:6379` (configurable via `REDIS_HOST`/`REDIS_PORT`).
 
-### 5. Run the Backend (Production Style)
+### 6. Run the Backend (Production Style)
 
 ```bash
 cd java-backend
 java -jar target/quarkus-app/quarkus-run.jar
 ```
 
-### 6. Set Up the Web UI
+### 7. Set Up the Web UI
 
 ```bash
 # Navigate to web UI directory
@@ -174,14 +196,14 @@ npm run build
 npm start
 ```
 
-### 7. Configure Environment (optional)
+### 8. Configure Environment (optional)
 
 ```bash
 cp .env.example .env
-# update values such as AUTH credentials, Redis URL, etc.
+# Update values such as AUTH credentials, Redis URL, etc.
 ```
 
-### 8. Run the Full Stack with Docker Compose
+### 9. Run the Full Stack with Docker Compose
 
 ```bash
 # Ensure the backend is packaged first
@@ -189,7 +211,7 @@ cd java-backend
 ./mvnw package -DskipTests
 cd ..
 
-# Start backend + redis
+# Start backend + redis (Redis is now required)
 docker compose up --build backend redis
 
 # Start frontend (development) in another terminal
@@ -201,6 +223,8 @@ For a simple production-like stack:
 ```bash
 docker compose up --build backend frontend-prod redis -d
 ```
+
+**Note**: Redis is now a required dependency for session management, settings storage, query history, and favorites.
 
 **Service URLs**
 
@@ -305,15 +329,17 @@ RAGU_DEPENDENCIES_REDIS=redis://localhost:6379/0
 RAGU_DEPENDENCIES_KAFKA=localhost:29092
 RAGU_DEPENDENCIES_QDRANT=http://localhost:6333
 
-# HTTP
+# HTTP & CORS
 QUARKUS_HTTP_PORT=8080
 QUARKUS_HTTP_HOST=0.0.0.0
+CORS_ORIGINS=http://localhost:4200,http://localhost:8080
 
-# Authentication
+# Authentication & Sessions
 RAGU_AUTH_ENABLED=false
 RAGU_AUTH_USERNAME=admin
 RAGU_AUTH_PASSWORD=changeme
 RAGU_AUTH_API_KEY=unset
+SESSION_TTL_MINUTES=1440  # 24 hours
 RAGU_RATE_LIMIT_READ_PER_MINUTE=60
 RAGU_RATE_LIMIT_WRITE_PER_MINUTE=30
 

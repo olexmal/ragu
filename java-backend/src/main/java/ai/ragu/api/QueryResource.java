@@ -1,5 +1,6 @@
 package ai.ragu.api;
 
+import ai.ragu.api.model.MultiVersionQueryRequest;
 import ai.ragu.api.model.QueryRequest;
 import ai.ragu.api.model.QueryResponse;
 import ai.ragu.rag.RagService;
@@ -11,6 +12,8 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+
+import java.util.Map;
 
 /**
  * Mirrors /query, /query/multi-version, and /query/compare routes.
@@ -36,14 +39,35 @@ public class QueryResource extends BaseResource {
 
     @POST
     @Path("/multi-version")
-    public Response multiVersion(QueryRequest request) {
-        return notImplemented("Multi-version query");
+    public Response multiVersion(MultiVersionQueryRequest request) {
+        if (request.versions() == null || request.versions().isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", "versions", "message", "At least one version is required"))
+                    .build();
+        }
+
+        QueryResponse response = ragService.handleMultiVersionQuery(
+                request.query(),
+                request.versions(),
+                request.k()
+        );
+        return Response.ok(response).build();
     }
 
     @POST
     @Path("/compare")
-    public Response compare(QueryRequest request) {
-        return notImplemented("Version comparison query");
+    public Response compare(MultiVersionQueryRequest request) {
+        if (request.versions() == null || request.versions().isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", "versions", "message", "At least one version is required"))
+                    .build();
+        }
+
+        Map<String, Object> response = ragService.handleCompareQuery(
+                request.query(),
+                request.versions(),
+                request.k()
+        );
+        return Response.ok(response).build();
     }
 }
-

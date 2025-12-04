@@ -50,9 +50,15 @@ ragu/
 - `ai.ragu.document` – Apache Tika + OpenNLP chunking pipeline.
 - `ai.ragu.embedding` – Abstraction for LangChain4j/DJL embeddings with caching.
 - `ai.ragu.vector` – Collection name generator + Qdrant adapter.
-- `ai.ragu.rag` – Retrieval-augmented generation orchestration.
-- `ai.ragu.tasks` – Kafka-ready scrape + progress simulation.
-- `ai.ragu.security` – API key/basic auth + Redis rate limiting filters.
+- `ai.ragu.rag` – Retrieval-augmented generation orchestration (single + multi-version queries).
+- `ai.ragu.storage` – Redis-backed persistence:
+  - `SessionService` – User session management with TTL
+  - `SettingsStorageService` – System, Confluence, and LLM provider settings
+  - `HistoryStorageService` – Query history in sorted sets
+  - `FavoritesStorageService` – Favorite queries
+  - `CacheService` – Cache management and clearing
+- `ai.ragu.tasks` – In-memory scrape + progress simulation (Kafka-ready).
+- `ai.ragu.security` – Cookie-based sessions, API key/basic auth, Redis rate limiting filters.
 
 ### Configuration
 `application.properties` exposes every knob. Override via `-D`, env vars, or Docker Compose.
@@ -136,9 +142,11 @@ Environment variables go in `.env` (see `README.md` for the matrix).
 - Adjust verbosity via `LOG_LEVEL` environment variable. All logs share the `service` field for downstream aggregation (e.g., Loki).
 
 ### Authentication & Rate Limiting
-- Rate limiting profiles live in `ai.ragu.security.RateLimitProfile` and are backed by Redis (`RateLimiterService`).
-- `AuthService` consumes `AUTH_USERNAME`, `AUTH_PASSWORD`, `AUTH_API_KEY`, and rate-limit env vars.
-- Use `RequiresAuth` for read endpoints and `RequiresWriteAuth` for mutating routes; both filters call `AuthService#checkAccess`.
+- **Session Management**: `SessionService` stores user sessions in Redis with configurable TTL (default 24 hours). Sessions are created on login and validated via `RAGU_SESSION` cookie.
+- **Auth Methods**: Supports cookie-based sessions (recommended), API key (`X-API-Key` header), and HTTP Basic auth.
+- **Rate Limiting**: `RateLimiterService` uses Redis-backed fixed windows; profiles are configurable via `RATE_LIMIT_READ_PER_MINUTE` and `RATE_LIMIT_WRITE_PER_MINUTE`.
+- **Filters**: Use `@RequiresAuth` for read endpoints and `@RequiresWriteAuth` for mutating routes; both invoke `AuthService#checkAccess`.
+- **Storage**: All settings (system, Confluence, LLM providers), query history, and favorites are persisted in Redis via the `ai.ragu.storage` package.
 
 See `docs/DOCKER_GUIDE.md#observability--monitoring` for Prometheus/Loki compose profiles and `docs/CUTOVER_RUNBOOK.md` for rollout monitoring steps.
 

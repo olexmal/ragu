@@ -14,16 +14,51 @@ http://localhost:8080
 
 ## Authentication
 
-If authentication is enabled, include the API key in the request header:
+The backend supports multiple authentication methods:
+
+### 1. Session-Based Authentication (Recommended)
+
+After logging in via `/auth/login`, the server sets a `RAGU_SESSION` cookie that is automatically included in subsequent requests.
+
+```bash
+# Login
+curl -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "changeme"}' \
+  -c cookies.txt
+
+# Subsequent requests use the cookie
+curl http://localhost:8080/query \
+  -b cookies.txt \
+  -H "Content-Type: application/json" \
+  -d '{"query": "How to use this API?"}'
+```
+
+### 2. API Key Authentication
+
+Include the API key in the request header:
 
 ```
 X-API-Key: your-api-key-here
 ```
 
-**Authentication Modes:**
-- `AUTH_REQUIRED_FOR=all`: All endpoints require authentication
-- `AUTH_REQUIRED_FOR=write`: Only write operations require authentication
-- `AUTH_ENABLED=false`: No authentication required
+### 3. Basic Authentication
+
+Use HTTP Basic Auth with username and password:
+
+```bash
+curl -u admin:changeme http://localhost:8080/query \
+  -H "Content-Type: application/json" \
+  -d '{"query": "test"}'
+```
+
+**Authentication Configuration:**
+- `AUTH_ENABLED=false`: No authentication required (default)
+- `AUTH_ENABLED=true`: Authentication required based on endpoint annotations
+- Write operations (POST/PUT/DELETE) always require authentication when enabled
+- Read operations (GET) may be public depending on configuration
+
+Sessions are stored in Redis with a configurable TTL (`SESSION_TTL_MINUTES`, default 1440 = 24 hours).
 
 ---
 
@@ -119,9 +154,39 @@ Embed multiple files from a directory.
 }
 ```
 
+#### `POST /confluence/test`
+
+Test Confluence connection with provided settings.
+
+**Content-Type:** `application/json`
+
+**Request Body:**
+```json
+{
+  "url": "https://your-domain.atlassian.net",
+  "instance_type": "cloud",
+  "api_token": "your-token",
+  "username": "your-email@example.com"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Connection test successful (stub validation)",
+  "url": "https://your-domain.atlassian.net",
+  "instance_type": "cloud"
+}
+```
+
+**Note:** Currently returns a stub validation. Full SDK integration for actual Confluence connection testing is pending.
+
 #### `POST /confluence/import`
 
 Import a Confluence page to the vector database.
+
+**Note:** This endpoint returns `501 Not Implemented` and requires Confluence SDK integration.
 
 **Authentication:** Required if `AUTH_REQUIRED_FOR=write` or `all`
 
@@ -294,7 +359,7 @@ Query the documentation using natural language.
 
 #### `POST /query/multi-version`
 
-Query documentation across multiple versions simultaneously.
+Query documentation across multiple versions simultaneously. Results are merged and ranked by relevance score.
 
 **Content-Type:** `application/json`
 
@@ -302,7 +367,7 @@ Query documentation across multiple versions simultaneously.
 ```json
 {
   "query": "How does UserService work?",
-  "versions": ["1.2.3", "1.3.0"],
+  "versions": ["v1.2.3", "v1.3.0"],
   "k": 3
 }
 ```
@@ -310,21 +375,24 @@ Query documentation across multiple versions simultaneously.
 **Response:**
 ```json
 {
-  "result": "Combined answer from multiple versions...",
+  "answer": "Merged results from 2 versions with 6 total sources.",
   "query": "How does UserService work?",
-  "versions_queried": ["1.2.3", "1.3.0"],
-  "sources_by_version": {
-    "1.2.3": [...],
-    "1.3.0": [...]
-  },
-  "total_sources": 6,
-  "response_time": 2.5
+  "sources": [
+    {
+      "content": "UserService handles...",
+      "metadata": {"version": "v1.3.0", "file_path": "user-service.md"}
+    }
+  ],
+  "source_count": 6,
+  "stats": {}
 }
 ```
+
+**Note:** The query is automatically recorded in history with a `multi:v1.2.3,v1.3.0` collection identifier.
 
 #### `POST /query/compare`
 
-Compare answers across different versions.
+Compare answers across different versions. Results are returned grouped by version.
 
 **Content-Type:** `application/json`
 
@@ -332,7 +400,7 @@ Compare answers across different versions.
 ```json
 {
   "query": "How do I create a user?",
-  "versions": ["1.2.3", "1.3.0", "2.0.0"],
+  "versions": ["v1.2.3", "v1.3.0", "v2.0.0"],
   "k": 3
 }
 ```
@@ -341,18 +409,22 @@ Compare answers across different versions.
 ```json
 {
   "query": "How do I create a user?",
-  "versions_compared": ["1.2.3", "1.3.0", "2.0.0"],
+  "versions": ["v1.2.3", "v1.3.0", "v2.0.0"],
   "results_by_version": {
-    "1.2.3": {
-      "answer": "...",
-      "source_count": 3,
-      "sources": [...]
-    },
-    "1.3.0": {...},
-    "2.0.0": {...}
-  }
+    "v1.2.3": [
+      {
+        "content": "In v1.2.3, create users via...",
+        "metadata": {"version": "v1.2.3", "file_path": "api.md"}
+      }
+    ],
+    "v1.3.0": [...],
+    "v2.0.0": [...]
+  },
+  "total_sources": 9
 }
 ```
+
+**Note:** The query is automatically recorded in history with a `compare:v1.2.3,v1.3.0,v2.0.0` collection identifier.
 
 ---
 
@@ -408,10 +480,10 @@ Delete a specific versioned collection.
 
 #### `GET /history`
 
-Get query history.
+Get query history from Redis sorted set (newest first).
 
 **Query Parameters:**
-- `limit` (optional): Number of entries (default: 50)
+- `limit` (optional): Number of entries (default: 50, max: 200)
 - `offset` (optional): Pagination offset (default: 0)
 
 **Response:**
@@ -419,12 +491,12 @@ Get query history.
 {
   "history": [
     {
-      "id": 1,
+      "id": "uuid-1234",
       "query": "How does UserService work?",
-      "timestamp": "2025-01-27T10:00:00",
-      "version": "1.2.3",
-      "response_time": 2.5,
-      "source_count": 3
+      "answer": "Placeholder answer synthesized...",
+      "source_count": 3,
+      "collection_name": "common-model-docs-v1.2.3",
+      "timestamp": "2025-12-04T10:00:00.000Z"
     }
   ],
   "total": 100,
@@ -433,24 +505,56 @@ Get query history.
 }
 ```
 
+**Note:** Query history is automatically recorded after every `/query` request.
+
 #### `GET /history/search?q=<term>`
 
-Search query history.
+Search query history by matching query or answer text.
 
 **Query Parameters:**
-- `q` (required): Search term
-- `limit` (optional): Maximum results (default: 20)
+- `q` (required): Search term (case-insensitive substring match)
+- `limit` (optional): Maximum results (default: 20, max: 100)
+
+**Response:**
+```json
+{
+  "results": [
+    {
+      "id": "uuid-1234",
+      "query": "UserService methods",
+      "answer": "...",
+      "source_count": 3,
+      "collection_name": "common-model-docs-v1.2.3",
+      "timestamp": "2025-12-04T10:00:00.000Z"
+    }
+  ],
+  "total": 5,
+  "query": "UserService"
+}
+```
 
 #### `GET /history/export?format=json|csv`
 
-Export query history.
+Export query history in JSON or CSV format.
 
 **Query Parameters:**
 - `format`: Export format - 'json' or 'csv' (default: 'json')
 
+**CSV Response Headers:**
+```
+id,query,answer,source_count,collection_name,timestamp
+```
+
+**JSON Response:**
+```json
+{
+  "history": [...]
+}
+```
+
 #### `GET /favorites`
 
-Get list of favorite queries.
+Get list of favorite queries from Redis set.
 
 **Response:**
 ```json
@@ -458,7 +562,8 @@ Get list of favorite queries.
   "favorites": [
     "How does UserService work?",
     "What methods are available in UserService?"
-  ]
+  ],
+  "total": 2
 }
 ```
 
@@ -475,16 +580,264 @@ Add a query to favorites.
 }
 ```
 
-#### `DELETE /favorites`
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Added to favorites",
+  "query": "How does UserService work?"
+}
+```
+
+#### `DELETE /favorites?query=<text>`
 
 Remove a query from favorites.
 
 **Authentication:** Required if `AUTH_REQUIRED_FOR=write` or `all`
 
+**Query Parameters:**
+- `query` (required): Query text to remove
+
+**Example:**
+```bash
+curl -X DELETE "http://localhost:8080/favorites?query=How%20does%20UserService%20work%3F"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Removed from favorites",
+  "query": "How does UserService work?"
+}
+```
+
+If not found:
+```json
+{
+  "success": false,
+  "message": "Not found in favorites",
+  "query": "How does UserService work?"
+}
+```
+
+---
+
+### Settings & Configuration
+
+#### `GET /settings/system`
+
+Get system settings (e.g., system name).
+
+**Response:**
+```json
+{
+  "systemName": "RAGU"
+}
+```
+
+#### `POST /settings/system`
+
+Save system settings.
+
 **Request Body:**
 ```json
 {
-  "query": "How does UserService work?"
+  "system_name": "My Custom RAG System"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "System settings saved"
+}
+```
+
+#### `GET /settings/confluence`
+
+Get Confluence integration settings.
+
+**Response:**
+```json
+{
+  "enabled": false,
+  "url": "",
+  "instance_type": "cloud",
+  "api_token": "",
+  "username": "",
+  "password": "",
+  "page_ids": [],
+  "auto_sync": false,
+  "sync_interval": 3600
+}
+```
+
+#### `POST /settings/confluence`
+
+Save Confluence integration settings.
+
+**Request Body:**
+```json
+{
+  "enabled": true,
+  "url": "https://your-domain.atlassian.net",
+  "instance_type": "cloud",
+  "api_token": "your-token",
+  "page_ids": ["123456"],
+  "auto_sync": false,
+  "sync_interval": 3600
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Confluence settings saved"
+}
+```
+
+#### `GET /settings/llm-providers`
+
+Get all LLM and embedding provider configurations.
+
+**Response:**
+```json
+{
+  "llm_providers": {
+    "ollama_1": {
+      "enabled": true,
+      "is_active": true,
+      "type": "ollama",
+      "model": "mistral",
+      "base_url": "http://localhost:11434"
+    }
+  },
+  "embedding_providers": {
+    "ollama_embed_1": {
+      "enabled": true,
+      "is_active": true,
+      "type": "ollama",
+      "model": "nomic-embed-text",
+      "base_url": "http://localhost:11434"
+    }
+  }
+}
+```
+
+#### `POST /settings/llm-providers`
+
+Save LLM and embedding provider configurations.
+
+**Request Body:**
+```json
+{
+  "llm_providers": {...},
+  "embedding_providers": {...}
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "LLM provider settings saved"
+}
+```
+
+#### `GET /settings/llm-providers/active`
+
+Get the currently active LLM and embedding providers.
+
+**Response:**
+```json
+{
+  "llm": {
+    "type": "ollama",
+    "model": "mistral"
+  },
+  "embedding": {
+    "type": "ollama",
+    "model": "nomic-embed-text"
+  }
+}
+```
+
+#### `GET /settings/llm-providers/models`
+
+Get available models for a provider type.
+
+**Query Parameters:**
+- `provider_type` (required): Provider type (e.g., "ollama", "openai", "anthropic")
+- `category` (optional): "llm" or "embedding" (default: "llm")
+- `api_key` (optional): API key for cloud providers
+
+**Response:**
+```json
+{
+  "models": [
+    {
+      "id": "mistral",
+      "name": "Mistral 7B",
+      "context_length": 8192
+    }
+  ]
+}
+```
+
+#### `POST /settings/llm-providers/test`
+
+Test a provider configuration.
+
+**Request Body:**
+```json
+{
+  "type": "openai",
+  "category": "llm",
+  "config": {
+    "api_key": "sk-...",
+    "model": "gpt-4"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Connection successful (stub validation)",
+  "test_response": "Provider configuration appears valid"
+}
+```
+
+---
+
+### Cache Management
+
+#### `POST /cache/clear`
+
+Clear all cached embeddings and query results from Redis.
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Cache cleared successfully",
+  "cleared": 42
+}
+```
+
+#### `GET /cache/stats`
+
+Get cache statistics.
+
+**Response:**
+```json
+{
+  "cache_size": 42,
+  "message": "Cache statistics"
 }
 ```
 
@@ -583,17 +936,85 @@ Extract code examples from text or documentation.
 
 ### Authentication
 
+#### `POST /auth/login`
+
+Login with username and password. Sets a `RAGU_SESSION` cookie for subsequent requests.
+
+**Content-Type:** `application/json`
+
+**Parameters:**
+- `username` (required): Username
+- `password` (required): Password
+
+**Example:**
+```bash
+curl -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "changeme"}' \
+  -c cookies.txt
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "username": "admin"
+}
+```
+
+**Error Response (401):**
+```json
+{
+  "success": false,
+  "message": "Invalid credentials"
+}
+```
+
+#### `POST /auth/logout`
+
+Logout and invalidate the current session.
+
+**Example:**
+```bash
+curl -X POST http://localhost:8080/auth/logout \
+  -b cookies.txt
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Logout successful"
+}
+```
+
 #### `GET /auth/status`
 
-Get authentication configuration status.
+Get authentication configuration and current session status.
+
+**Example:**
+```bash
+curl http://localhost:8080/auth/status -b cookies.txt
+```
 
 **Response:**
 ```json
 {
   "enabled": true,
-  "required_for": "write",
-  "api_key_configured": true,
-  "header_name": "X-API-Key"
+  "authenticated": true,
+  "username": "admin",
+  "apiKeyConfigured": false
+}
+```
+
+When not authenticated:
+```json
+{
+  "enabled": true,
+  "authenticated": false,
+  "username": "",
+  "apiKeyConfigured": false
 }
 ```
 

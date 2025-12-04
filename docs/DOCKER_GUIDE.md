@@ -77,9 +77,10 @@ This will:
    - Port: 8080
    - Health: http://localhost:8080/health
 
-2. **redis** - Redis server for rate limiting/cache (optional but enabled by default)
+2. **redis** - Redis server (required)
    - Port: 6379
    - Data persisted in `redis_data` volume
+   - Used for: sessions, settings storage, query history, favorites, rate limiting, and embedding cache
 
 3. **frontend-dev** - Angular development server
    - Port: 4200
@@ -173,10 +174,25 @@ cp .env.docker .env
 ```
 
 Key variables:
+
+**Dependencies:**
 - `OLLAMA_BASE_URL` - Ollama server URL (default `http://host.docker.internal:11434`)
-- `REDIS_URL` - Redis connection string for the backend
-- `AUTH_ENABLED` / `AUTH_USERNAME` / `AUTH_PASSWORD` / `AUTH_API_KEY`
-- `RATE_LIMIT_READ` / `RATE_LIMIT_WRITE`
+- `REDIS_URL` - Redis connection string (default `redis://redis:6379/0`)
+- `QDRANT_URL` - Qdrant vector database URL (default `http://qdrant:6333`)
+
+**Authentication & Sessions:**
+- `AUTH_ENABLED` - Enable authentication (default `false`)
+- `AUTH_USERNAME` / `AUTH_PASSWORD` - Basic auth credentials
+- `AUTH_API_KEY` - API key for authentication
+- `SESSION_TTL_MINUTES` - Session timeout in minutes (default `1440` = 24 hours)
+- `SESSION_COOKIE_NAME` - Session cookie name (default `RAGU_SESSION`)
+
+**Rate Limiting:**
+- `RATE_LIMIT_READ_PER_MINUTE` - Read operations per minute (default `60`)
+- `RATE_LIMIT_WRITE_PER_MINUTE` - Write operations per minute (default `30`)
+
+**CORS:**
+- `CORS_ORIGINS` - Allowed origins for CORS (default `http://localhost:4200,http://localhost:8080`)
 
 ## Data Persistence
 

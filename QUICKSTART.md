@@ -38,7 +38,25 @@ For advanced Docker usage see [docs/DOCKER_GUIDE.md](docs/DOCKER_GUIDE.md).
 
 ## ⚡ Manual Setup
 
-### 1. Install Ollama and Models
+### 1. Install Redis
+
+Redis is required for sessions, settings, history, and caching.
+
+```bash
+# macOS
+brew install redis && brew services start redis
+
+# Ubuntu/Debian
+sudo apt install redis-server -y && sudo systemctl start redis-server
+
+# Docker
+docker run -d --name redis -p 6379:6379 redis:7-alpine
+
+# Verify
+redis-cli ping  # Should return: PONG
+```
+
+### 2. Install Ollama and Models
 
 ```bash
 curl -fsSL https://ollama.ai/install.sh | sh
@@ -47,15 +65,16 @@ ollama pull mistral
 ollama pull nomic-embed-text
 ```
 
-### 2. Run the Backend (Development)
+### 3. Run the Backend (Development)
 
 ```bash
 cd ragu/java-backend
 ./mvnw quarkus:dev
 # API available at http://localhost:8080
+# Connects to Redis at localhost:6379 by default
 ```
 
-### 3. Run the Backend (Production Style)
+### 4. Run the Backend (Production Style)
 
 ```bash
 cd ragu/java-backend
@@ -63,7 +82,7 @@ cd ragu/java-backend
 java -jar target/quarkus-app/quarkus-run.jar
 ```
 
-### 4. Run the Web UI
+### 5. Run the Web UI
 
 ```bash
 cd ragu/web-ui
@@ -71,7 +90,7 @@ npm install
 npm start   # http://localhost:4200
 ```
 
-### 5. Test the API
+### 6. Test the API
 
 ```bash
 curl http://localhost:8080/health
