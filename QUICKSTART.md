@@ -82,6 +82,22 @@ curl -X POST http://localhost:8080/embed -F "file=@test.txt"
 curl -X POST http://localhost:8080/query \
   -H "Content-Type: application/json" \
   -d '{"query": "What does UserService do?"}'
+
+# Observability quick check
+curl http://localhost:8080/q/health/ready | jq
+curl http://localhost:8080/q/metrics | head
+```
+
+### 6. Run Tests
+
+```bash
+# Backend
+cd ragu/java-backend
+./mvnw test    # includes PhaseSevenIntegrationTest (embed/query/scrape)
+
+# Frontend
+cd ../web-ui
+npm test
 ```
 
 ---

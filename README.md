@@ -207,6 +207,8 @@ docker compose up --build backend frontend-prod redis -d
 - Backend API: http://localhost:8080
 - Frontend (dev): http://localhost:4200
 - Frontend (prod): http://localhost:80
+- Metrics: http://localhost:8080/q/metrics
+- Health: http://localhost:8080/q/health/ready
 
 ---
 
@@ -254,6 +256,12 @@ curl -X POST http://localhost:8080/query \
     "version": "1.2.3",
     "k": 3
   }'
+```
+
+#### Monitor Health & Metrics
+```bash
+curl http://localhost:8080/q/health/ready | jq
+curl http://localhost:8080/q/metrics | head
 ```
 
 ## 🏗️ Project Structure
@@ -360,6 +368,7 @@ curl -X POST http://localhost:8080/settings/confluence \
 - **[API Reference](docs/API_REFERENCE.md)** - Complete API endpoint documentation
 - **[Developer Guide](docs/DEVELOPER_GUIDE.md)** - Architecture and extension guide
 - **[Changelog](CHANGELOG.md)** - Version history and changes
+- **[Cutover Runbook](docs/CUTOVER_RUNBOOK.md)** - Staged rollout + rollback plan for the Java backend
 
 ### Key Endpoints
 
@@ -371,8 +380,19 @@ curl -X POST http://localhost:8080/settings/confluence \
 - `GET /collections` - List all collections
 - `GET /stats` - System statistics
 - `GET /history` - Query history
+- `GET /q/health/ready` - Readiness probe (includes Redis/Kafka/Qdrant)
+- `GET /q/metrics` - Prometheus-formatted Micrometer metrics
 
 For complete API documentation, see [API_REFERENCE.md](docs/API_REFERENCE.md).
+
+---
+
+## 📡 Observability & Logging
+
+- **Health**: `GET /q/health`, `/q/health/ready`, and `/q/health/live` expose dependency checks.
+- **Metrics**: Micrometer Prometheus registry is available at `/q/metrics` and includes counters (e.g., `ragu_embedding_requests`, `ragu_query_requests`, `ragu_scrape_tasks`) and timers for latency insight.
+- **Logs**: Structured JSON logs are enabled by default (`LOG_JSON=true`). Override at runtime with `LOG_JSON=false` or change verbosity via `LOG_LEVEL`.
+- **Dashboards**: See [docs/DOCKER_GUIDE.md](docs/DOCKER_GUIDE.md#observability--monitoring) for Prometheus/Loki/Grafana instructions.
 
 ---
 
@@ -387,6 +407,10 @@ cd java-backend
 cd web-ui
 npm test
 ```
+
+Highlights:
+- `PhaseSevenIntegrationTest` exercises `/embed`, `/query`, and `/embed-url` end-to-end using RestAssured.
+- Micrometer-aware unit tests cover `EmbeddingPipeline`, `RagService`, and `ScrapeTaskService`.
 
 Quarkus generates reports under `java-backend/target/surefire-reports` and Angular coverage reports under `web-ui/coverage`.
 

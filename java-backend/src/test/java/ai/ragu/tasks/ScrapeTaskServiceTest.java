@@ -5,6 +5,7 @@ import ai.ragu.api.model.TaskEnqueueResponse;
 import ai.ragu.api.model.TaskStatusResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import java.util.Optional;
 import java.util.concurrent.Executors;
@@ -15,11 +16,13 @@ import static org.junit.jupiter.api.Assertions.*;
 class ScrapeTaskServiceTest {
 
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-    private final ScrapeTaskService service = new ScrapeTaskService(50, executor);
+    private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+    private final ScrapeTaskService service = new ScrapeTaskService(50, executor, meterRegistry);
 
     @AfterEach
     void tearDown() {
         service.shutdown();
+        meterRegistry.close();
     }
 
     @Test

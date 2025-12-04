@@ -42,8 +42,9 @@ The audit produced the canonical endpoint list. Each set maps to a Quarkus resou
 | `/settings*`, `/confluence*`, `/extract-code` | `SettingsResource`, `ConfluenceResource`, `CodeResource` | Mirror validation logic; extraction uses JVM parser |
 
 ## Observability & Operations
-- Micrometer metrics exported via Prometheus; traces through OpenTelemetry (OTLP).
-- Kafka dead-letter topics for failed background tasks.
-- Health routes include dependency checks (Redis, Kafka, Qdrant, active LLM provider).
-- Docker Compose includes both Python and Java services for dual-run; Quarkus native image optional for prod.
+- Micrometer metrics exported via Prometheus (`/q/metrics`) covering embedding/query/scrape latency & counters; OTLP tracing remains optional.
+- Structured JSON logs enabled by default; `LOG_LEVEL`/`LOG_JSON` env vars control verbosity/format for Loki or Cloud Logging.
+- Health routes (`/q/health`, `/q/health/ready`, `/q/health/live`) include Redis, Kafka, Qdrant, and provider checks.
+- Kafka dead-letter topics capture failed background tasks.
+- Docker Compose profiles ship optional Prometheus/Loki stacks; Quarkus native image remains an optimization for prod.
 

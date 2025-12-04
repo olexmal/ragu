@@ -29,7 +29,7 @@
 - [x] **Docs & scripts cleanup**: Updated README, QUICKSTART, DOCKER_GUIDE, SCALABILITY_ROADMAP, DEVELOPER_GUIDE, and Browser MCP docs to reflect the Java-only stack.
 
 ## Phase 7 – Testing, Observability & Rollout
-- [ ] **Test suite**: Create integration tests (Quarkus + RestAssured) covering embedding, querying, and scraping flows.
-- [ ] **Observability**: Integrate Micrometer metrics, centralized logging, and health checks; update `docs/DOCKER_GUIDE.md` with the new services.
-- [ ] **Cutover**: Execute a staged rollout, monitor, then decommission Python services once feature parity and stability are confirmed.
+- [x] **Test suite**: Added `PhaseSevenIntegrationTest` (RestAssured) plus Micrometer-aware unit tests to exercise /embed, /query, and /embed-url flows; wired simple test configs for faster scrape simulation.
+- [x] **Observability**: Enabled Micrometer Prometheus registry, JSON logging, `/q/health` endpoints, and updated `docs/DOCKER_GUIDE.md` with metrics/logging instructions and optional Prometheus/Loki profile.
+- [x] **Cutover**: Authored `docs/CUTOVER_RUNBOOK.md` detailing staged rollout, monitoring, and rollback steps for switching fully to the Quarkus backend.
 

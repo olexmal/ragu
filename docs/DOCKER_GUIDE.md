@@ -96,6 +96,63 @@ This will:
    - Only active with `--profile with-ollama`
    - Models persisted in `ollama_data` volume
 
+## Observability & Monitoring
+
+### Built-in Endpoints
+
+- **Liveness/Readiness**: `http://localhost:8080/q/health` (includes `/ready` and `/live` sub-paths)
+- **Metrics (Micrometer/Prometheus)**: `http://localhost:8080/q/metrics`
+- **Structured Logs**: Enabled by default (`quarkus.log.console.json=true`). Override via `LOG_JSON=false` or change verbosity with `LOG_LEVEL=DEBUG`.
+
+You can validate locally:
+
+```bash
+curl http://localhost:8080/q/health/ready | jq
+curl http://localhost:8080/q/metrics | head
+docker compose logs -f backend | jq .
+```
+
+### Optional Prometheus & Loki Stack
+
+Add the following services to `docker-compose.yml` (or a secondary compose file) to capture metrics and logs:
+
+```yaml
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./ops/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    profiles: ["monitoring"]
+
+  loki:
+    image: grafana/loki:2.9.5
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    profiles: ["monitoring"]
+```
+
+Sample `ops/prometheus.yml`:
+
+```yaml
+global:
+  scrape_interval: 10s
+scrape_configs:
+  - job_name: "ragu-backend"
+    static_configs:
+      - targets: ["backend:8080"]
+```
+
+Then launch everything:
+
+```bash
+docker compose --profile monitoring up prometheus loki
+```
+
+Grafana can be layered on top (point it at `http://localhost:9090` for Prometheus and `http://localhost:3100` for Loki).
+
 ## Docker Compose Files
 
 All services are defined in `docker-compose.yml`. Profiles are used for optional services (e.g., `--profile with-ollama`). Development vs production behavior is controlled by the targets you `docker compose up` (e.g., `frontend-dev` vs `frontend-prod`) and the environment variables you pass.

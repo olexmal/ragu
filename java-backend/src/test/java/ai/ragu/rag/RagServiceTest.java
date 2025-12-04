@@ -9,6 +9,7 @@ import ai.ragu.vector.VectorDocument;
 import ai.ragu.vector.VectorStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import java.util.List;
 import java.util.Map;
@@ -20,12 +21,14 @@ class RagServiceTest {
 
     private RagService ragService;
     private VectorStore vectorStore;
+    private SimpleMeterRegistry meterRegistry;
 
     @BeforeEach
     void setUp() {
         EmbeddingService embeddingService = new LangChainEmbeddingService(new InMemoryEmbeddingCache());
         vectorStore = new QdrantVectorService();
-        ragService = new RagService(embeddingService, vectorStore, "unit-collection");
+        meterRegistry = new SimpleMeterRegistry();
+        ragService = new RagService(embeddingService, vectorStore, "unit-collection", meterRegistry);
 
         vectorStore.upsert(
                 "unit-collection",

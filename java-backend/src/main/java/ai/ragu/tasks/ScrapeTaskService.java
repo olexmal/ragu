@@ -9,6 +9,8 @@ import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 
 import java.time.Instant;
 import java.util.List;
@@ -29,16 +31,22 @@ public class ScrapeTaskService {
     private final ConcurrentMap<String, TaskStatusResponse> statuses = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, ScheduledFuture<?>> futures = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, CopyOnWriteArrayList<MultiEmitter<? super TaskStatusResponse>>> subscribers = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Long> taskStartTimes = new ConcurrentHashMap<>();
+    private final MeterRegistry meterRegistry;
+    private final Timer taskTimer;
 
     @Inject
     public ScrapeTaskService(
-            @ConfigProperty(name = "ragu.scrape.simulation-step-ms", defaultValue = "500") long stepMillis) {
-        this(stepMillis, Executors.newScheduledThreadPool(2));
+            @ConfigProperty(name = "ragu.scrape.simulation-step-ms", defaultValue = "500") long stepMillis,
+            MeterRegistry meterRegistry) {
+        this(stepMillis, Executors.newScheduledThreadPool(2), meterRegistry);
     }
 
-    ScrapeTaskService(long stepMillis, ScheduledExecutorService executor) {
+    ScrapeTaskService(long stepMillis, ScheduledExecutorService executor, MeterRegistry meterRegistry) {
         this.stepMillis = Math.max(100, stepMillis);
         this.executor = executor;
+        this.meterRegistry = meterRegistry;
+        this.taskTimer = meterRegistry.timer("ragu.scrape.duration");
     }
 
     public TaskEnqueueResponse enqueue(EmbedUrlRequest request) {
@@ -54,6 +62,8 @@ public class ScrapeTaskService {
         );
         statuses.put(taskId, initial);
         emit(taskId, initial);
+        taskStartTimes.put(taskId, System.nanoTime());
+        meterRegistry.counter("ragu.scrape.tasks", "event", "enqueued").increment();
 
         ScheduledFuture<?> future = executor.scheduleAtFixedRate(new ProgressJob(taskId, request), stepMillis, stepMillis, TimeUnit.MILLISECONDS);
         futures.put(taskId, future);
@@ -85,6 +95,7 @@ public class ScrapeTaskService {
         );
         statuses.put(taskId, cancelled);
         emit(taskId, cancelled);
+        recordCompletion(taskId, "cancelled");
         return cancelled;
     }
 
@@ -118,6 +129,15 @@ public class ScrapeTaskService {
         List<MultiEmitter<? super TaskStatusResponse>> emitters = subscribers.get(taskId);
         if (emitters != null) {
             emitters.forEach(emitter -> emitter.emit(status));
+        }
+    }
+
+    private void recordCompletion(String taskId, String outcome) {
+        meterRegistry.counter("ragu.scrape.tasks", "event", outcome).increment();
+        Long start = taskStartTimes.remove(taskId);
+        if (start != null) {
+            long durationNanos = System.nanoTime() - start;
+            taskTimer.record(durationNanos, TimeUnit.NANOSECONDS);
         }
     }
 
@@ -171,6 +191,7 @@ public class ScrapeTaskService {
             emit(taskId, updated);
 
             if (state.equals("SUCCESS")) {
+                recordCompletion(taskId, "succeeded");
                 cancelFuture();
             }
         }

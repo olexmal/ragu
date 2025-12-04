@@ -12,6 +12,7 @@ import ai.ragu.vector.VectorOperationResult;
 import ai.ragu.vector.VectorStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -21,9 +22,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class EmbeddingPipelineTest {
 
     private EmbeddingPipeline pipeline;
+    private SimpleMeterRegistry meterRegistry;
 
     @BeforeEach
     void setUp() {
+        meterRegistry = new SimpleMeterRegistry();
+
         DocumentProcessor processor = new DocumentProcessor() {
             @Override
             public List<DocumentChunk> process(Path path, DocumentProcessingOptions options) {
@@ -80,7 +84,7 @@ class EmbeddingPipelineTest {
             }
         };
 
-        pipeline = new EmbeddingPipeline(processor, embeddingService, store, new CollectionNameGenerator(), "unit");
+        pipeline = new EmbeddingPipeline(processor, embeddingService, store, new CollectionNameGenerator(), meterRegistry, "unit");
     }
 
     @Test

@@ -122,10 +122,25 @@ Environment variables go in `.env` (see `README.md` for the matrix).
 
 ## 6. Observability & Auth
 
-- Quarkus `/q/health`, `/q/metrics`, `/q/trace` are enabled in dev; lock them down behind auth in prod.
-- Rate limiting profiles live in `ai.ragu.security.RateLimitProfile`.
-- `AuthService` reads `AUTH_USERNAME`, `AUTH_PASSWORD`, `AUTH_API_KEY`.
-- Micrometer integration is planned for Phase 7; add dependencies under `<dependencies>` in `pom.xml` when ready.
+### Health & Metrics
+- Liveness/readiness: `GET /q/health`, `/q/health/live`, `/q/health/ready` (includes Redis/Kafka/Qdrant checks).
+- Metrics: Micrometer Prometheus registry at `/q/metrics` with key instruments:
+  - `ragu_embedding_requests`, `ragu_embedding.chunks`
+  - `ragu_query_requests`, `ragu_query.sources`
+  - `ragu_scrape.tasks` (counters for enqueue/success/cancel) + `ragu.scrape.duration`
+  - Timer gauges for embedding/query latency (`ragu.embedding.duration`, `ragu.query.duration`)
+- Configure via `application.properties`: `quarkus.micrometer.export.prometheus.*`.
+
+### Logging
+- Structured JSON logs are enabled by default (`quarkus.log.console.json=true`). Override with `LOG_JSON=false` when tailing locally.
+- Adjust verbosity via `LOG_LEVEL` environment variable. All logs share the `service` field for downstream aggregation (e.g., Loki).
+
+### Authentication & Rate Limiting
+- Rate limiting profiles live in `ai.ragu.security.RateLimitProfile` and are backed by Redis (`RateLimiterService`).
+- `AuthService` consumes `AUTH_USERNAME`, `AUTH_PASSWORD`, `AUTH_API_KEY`, and rate-limit env vars.
+- Use `RequiresAuth` for read endpoints and `RequiresWriteAuth` for mutating routes; both filters call `AuthService#checkAccess`.
+
+See `docs/DOCKER_GUIDE.md#observability--monitoring` for Prometheus/Loki compose profiles and `docs/CUTOVER_RUNBOOK.md` for rollout monitoring steps.
 
 ## 7. Contribution Workflow
 

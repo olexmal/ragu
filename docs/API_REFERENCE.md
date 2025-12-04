@@ -33,18 +33,31 @@ X-API-Key: your-api-key-here
 
 #### `GET /health`
 
-Check service health status.
+High-level service status (used by dashboards/UI).
 
 **Response:**
 ```json
 {
-  "status": "healthy",
-  "service": "RAG API",
-  "ollama_available": true,
-  "enabled": false,
-  "required_for": "write"
+  "status": "initializing",
+  "service": "RAGU Java Backend",
+  "llmProvider": "pending",
+  "dependencies": {
+    "redis": "redis://localhost:6379/0",
+    "kafka": "localhost:9092",
+    "qdrant": "http://localhost:6333"
+  }
 }
 ```
+
+#### `GET /q/health`
+
+Quarkus health group. Sub-paths:
+- `/q/health/live` – liveness
+- `/q/health/ready` – readiness (checks Redis/Kafka/Qdrant reachability)
+
+#### `GET /q/metrics`
+
+Micrometer Prometheus metrics (e.g., `ragu_embedding_requests`, `ragu_query_requests`, `ragu_scrape_tasks`, associated timers).
 
 ---
 
@@ -161,7 +174,7 @@ curl -X POST http://localhost:8080/confluence/import \
 
 #### `POST /embed-url`
 
-Start a background job to scrape and embed content from a URL. This endpoint uses Celery for asynchronous processing.
+Start a background job to scrape and embed content from a URL. This endpoint runs asynchronously via the Kafka-backed task pipeline (locally simulated by `ScrapeTaskService`).
 
 **Authentication:** Required if `AUTH_REQUIRED_FOR=write` or `all`
 
@@ -208,83 +221,34 @@ curl -X POST http://localhost:8080/embed-url \
   }'
 ```
 
-#### `GET /embed-url/status/<task_id>`
+#### `GET /embed-url/status/{task_id}`
 
-Get the status of a scraping task.
+Retrieve task progress (polling endpoint).
 
-**Response (Task in Progress):**
 ```json
 {
+  "task_id": "abc123",
   "state": "PROGRESS",
-  "status": "Embedding page 5/20: Getting Started",
-  "progress": 35,
-  "url": "https://docs.example.com/getting-started"
+  "message": "Scraping in progress 60%",
+  "progress": 60,
+  "url": "https://docs.example.com",
+  "metadata": null,
+  "error": null
 }
 ```
 
-**Response (Task Completed):**
-```json
-{
-  "state": "SUCCESS",
-  "status": "completed",
-  "result": {
-    "success": 20,
-    "failed": 0,
-    "errors": [],
-    "pages": [...]
-  }
-}
+#### `GET /embed-url/stream/{task_id}`
+
+Server-Sent Events stream mirroring `/embed-url/status`. Each event is a JSON `TaskStatusResponse`. Useful for the Angular UI.
+
+```
+GET /embed-url/stream/abc123
+Accept: text/event-stream
 ```
 
-**Task States:**
-- `PENDING` - Task is waiting to be processed
-- `PROGRESS` - Task is currently running
-- `SUCCESS` - Task completed successfully
-- `FAILURE` - Task failed
-- `REVOKED` - Task was cancelled
+#### `POST /embed-url/cancel/{task_id}`
 
-#### `GET /embed-url/stream/<task_id>`
-
-Server-Sent Events (SSE) endpoint for real-time progress updates.
-
-**Response (SSE Stream):**
-```
-data: {"state": "PROGRESS", "status": "Scraping page 1...", "progress": 5}
-
-data: {"state": "PROGRESS", "status": "Embedding page 1/10...", "progress": 15}
-
-data: {"state": "SUCCESS", "status": "completed", "progress": 100}
-```
-
-**Example (JavaScript):**
-```javascript
-const eventSource = new EventSource('/embed-url/stream/abc123-...');
-eventSource.onmessage = (event) => {
-  const data = JSON.parse(event.data);
-  console.log(`Progress: ${data.progress}% - ${data.status}`);
-  if (data.state === 'SUCCESS' || data.state === 'FAILURE') {
-    eventSource.close();
-  }
-};
-```
-
-#### `POST /embed-url/cancel/<task_id>`
-
-Cancel a running scraping task.
-
-**Authentication:** Required if `AUTH_REQUIRED_FOR=write` or `all`
-
-**Response:**
-```json
-{
-  "message": "Task cancellation requested",
-  "task_id": "abc123-def456-..."
-}
-```
-
-**Note:** Cancellation is graceful - the task will complete the current page before stopping.
-
----
+Cancel a pending task. Returns the final `TaskStatusResponse` with `state="REVOKED"`.
 
 ### Querying
 

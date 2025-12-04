@@ -12,6 +12,8 @@ import ai.ragu.vector.VectorStore;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 
 import java.util.Collections;
 import java.util.List;
@@ -24,56 +26,69 @@ public class RagService {
     private final EmbeddingService embeddingService;
     private final VectorStore vectorStore;
     private final String defaultCollection;
+    private final MeterRegistry meterRegistry;
+    private final Timer queryTimer;
 
     @Inject
     public RagService(EmbeddingService embeddingService,
                       VectorStore vectorStore,
-                      @ConfigProperty(name = "ragu.qdrant.collection-base", defaultValue = "common-model-docs") String defaultCollection) {
+                      @ConfigProperty(name = "ragu.qdrant.collection-base", defaultValue = "common-model-docs") String defaultCollection,
+                      MeterRegistry meterRegistry) {
         this.embeddingService = embeddingService;
         this.vectorStore = vectorStore;
         this.defaultCollection = defaultCollection;
+        this.meterRegistry = meterRegistry;
+        this.queryTimer = meterRegistry.timer("ragu.query.duration");
     }
 
     public QueryResponse handleQuery(QueryRequest request) {
-        EmbeddingResult queryEmbedding = embeddingService.embed(request.query(), EmbeddingOptions.defaultOptions());
+        Timer.Sample sample = Timer.start(meterRegistry);
+        try {
+            EmbeddingResult queryEmbedding = embeddingService.embed(request.query(), EmbeddingOptions.defaultOptions());
 
-        String targetCollection = (request.collectionName() == null || request.collectionName().isBlank())
-                ? defaultCollection
-                : request.collectionName();
+            String targetCollection = (request.collectionName() == null || request.collectionName().isBlank())
+                    ? defaultCollection
+                    : request.collectionName();
 
-        List<VectorDocument> hits = vectorStore.search(
-                targetCollection,
-                request.version(),
-                queryEmbedding.vector(),
-                request.k()
-        );
+            List<VectorDocument> hits = vectorStore.search(
+                    targetCollection,
+                    request.version(),
+                    queryEmbedding.vector(),
+                    request.k()
+            );
 
-        List<SourceDocument> sources = hits.stream()
-                .map(this::toSourceDocument)
-                .toList();
+            List<SourceDocument> sources = hits.stream()
+                    .map(this::toSourceDocument)
+                    .toList();
 
-        String answer = hits.isEmpty()
-                ? "No indexed documents yet, but we received your question: \"%s\"".formatted(request.query())
-                : "Placeholder answer synthesized from %d retrieved documents.".formatted(hits.size());
+            String answer = hits.isEmpty()
+                    ? "No indexed documents yet, but we received your question: \"%s\"".formatted(request.query())
+                    : "Placeholder answer synthesized from %d retrieved documents.".formatted(hits.size());
 
-        QueryStats stats = new QueryStats(
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-        );
+            QueryStats stats = new QueryStats(
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+            );
 
-        return new QueryResponse(
-                answer,
-                request.query(),
-                sources,
-                sources.size(),
-                stats
-        );
+            meterRegistry.counter("ragu.query.requests", "result", hits.isEmpty() ? "no_hits" : "hits").increment();
+            meterRegistry.summary("ragu.query.sources").record(sources.size());
+
+            return new QueryResponse(
+                    answer,
+                    request.query(),
+                    sources,
+                    sources.size(),
+                    stats
+            );
+        } finally {
+            sample.stop(queryTimer);
+        }
     }
 
     private SourceDocument toSourceDocument(VectorDocument doc) {
