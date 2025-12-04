@@ -228,15 +228,22 @@ docker compose up --build backend frontend-prod redis -d
 
 **Optional Monitoring:**
 
-To enable Prometheus metrics collection and visualization:
+To enable Prometheus metrics collection and Grafana visualization:
 
 ```bash
 # Start with monitoring profile
-docker compose --profile monitoring up -d prometheus
+docker compose --profile monitoring up -d
 
-# Access Prometheus UI
-open http://localhost:9090
+# Access monitoring UIs
+open http://localhost:3000  # Grafana (admin/admin)
+open http://localhost:9090  # Prometheus
 ```
+
+Grafana comes pre-configured with the **RAGU Overview** dashboard showing:
+- Query and embedding request rates
+- P50/P95/P99 latency metrics
+- Source retrieval and chunk processing stats
+- Real-time monitoring with 5-second refresh
 
 **Service URLs**
 
@@ -245,6 +252,7 @@ open http://localhost:9090
 - Frontend (prod): http://localhost:80
 - Metrics: http://localhost:8080/q/metrics
 - Health: http://localhost:8080/q/health/ready
+- Grafana (optional): http://localhost:3000
 - Prometheus (optional): http://localhost:9090
 
 ---

@@ -26,6 +26,14 @@ Service URLs:
 - Frontend (dev): http://localhost:4200
 - Frontend (prod): `docker compose up --build backend frontend-prod redis -d` → http://localhost:80
 
+**Optional Monitoring:**
+```bash
+# Add Prometheus & Grafana for metrics visualization
+docker compose --profile monitoring up -d
+# Access Grafana at http://localhost:3000 (admin/admin)
+# Access Prometheus at http://localhost:9090
+```
+
 To stop everything:
 
 ```bash

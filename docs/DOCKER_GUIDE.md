@@ -104,6 +104,15 @@ This will:
    - Data persisted in `prometheus_data` volume
    - UI available at http://localhost:9090
 
+7. **grafana** (optional profile `monitoring`)
+   - Port: 3000
+   - Only active with `--profile monitoring`
+   - Pre-configured with Prometheus datasource
+   - Includes RAGU Overview dashboard out-of-the-box
+   - Data persisted in `grafana_data` volume
+   - UI available at http://localhost:3000
+   - Default credentials: admin/admin (change on first login)
+
 ## Observability & Monitoring
 
 ### Built-in Endpoints
@@ -120,23 +129,34 @@ curl http://localhost:8080/q/metrics | head
 docker compose logs -f backend | jq .
 ```
 
-### Optional Prometheus Stack
+### Optional Prometheus & Grafana Stack
 
-Prometheus is included in `docker-compose.yml` with the `monitoring` profile. It's pre-configured to scrape metrics from the backend at `/q/metrics`.
+Prometheus and Grafana are included in `docker-compose.yml` with the `monitoring` profile. Prometheus is pre-configured to scrape metrics from the backend at `/q/metrics`, and Grafana comes with a pre-built RAGU Overview dashboard.
 
-**Starting Prometheus:**
+**Starting Monitoring Stack:**
 
 ```bash
-# Start with the monitoring profile
-docker compose --profile monitoring up -d prometheus
+# Start Prometheus and Grafana with the monitoring profile
+docker compose --profile monitoring up -d
 
 # Or start entire stack including monitoring
-docker compose --profile monitoring up --build backend redis frontend-dev prometheus
+docker compose --profile monitoring up --build backend redis frontend-dev
 ```
 
-**Access Prometheus UI:**
-- URL: http://localhost:9090
+**Access Monitoring UIs:**
+- **Grafana**: http://localhost:3000 (default: admin/admin)
+- **Prometheus**: http://localhost:9090
 - The backend metrics are scraped every 15 seconds from `backend:8080/q/metrics`
+
+**RAGU Overview Dashboard:**
+
+Grafana comes pre-configured with the "RAGU Overview" dashboard that shows:
+- **Summary Stats**: Total queries, embeddings, and scrape tasks
+- **Request Rates**: Query and embedding request rates over time
+- **Latency Metrics**: P50, P95, P99 latencies for queries and embeddings
+- **Resource Usage**: Query sources retrieved and embedding chunks processed
+
+The dashboard auto-refreshes every 5 seconds and shows the last 15 minutes by default.
 
 **Configuration:**
 
@@ -156,6 +176,11 @@ scrape_configs:
           service: 'ragu-backend'
           environment: 'docker'
 ```
+
+Grafana provisioning is located in `grafana/provisioning/`:
+- `datasources/prometheus.yml` - Prometheus datasource configuration
+- `dashboards/dashboards.yml` - Dashboard provider configuration
+- `dashboards/ragu-overview.json` - RAGU Overview dashboard
 
 **Querying Metrics:**
 
@@ -178,18 +203,16 @@ histogram_quantile(0.95, rate(ragu_query_duration_seconds_bucket[5m]))
 rate(ragu_query_requests_total{result="error"}[5m])
 ```
 
-**Adding Grafana (Optional):**
+**Customizing Dashboards:**
 
-To visualize Prometheus metrics, you can add Grafana to your setup:
+The RAGU Overview dashboard can be customized directly in Grafana:
+1. Log in to Grafana at http://localhost:3000
+2. Navigate to Dashboards → RAGU Overview
+3. Click the gear icon to edit
+4. Add panels, modify queries, or adjust visualizations
+5. Save your changes
 
-```bash
-docker run -d --name=grafana --network=ragu-network -p 3000:3000 grafana/grafana:latest
-```
-
-Then:
-1. Access Grafana at http://localhost:3000 (default credentials: admin/admin)
-2. Add Prometheus as a data source: `http://prometheus:9090`
-3. Import or create dashboards for RAGU metrics
+Your modifications are persisted in the `grafana_data` volume.
 
 **Adding Loki for Logs (Optional):**
 
@@ -220,11 +243,11 @@ All services are defined in `docker-compose.yml`. Profiles are used for optional
 - Start dev stack: `docker compose up --build backend redis frontend-dev`
 - Start prod stack: `docker compose up --build backend frontend-prod redis -d`
 - Include Ollama container: `docker compose --profile with-ollama up`
-- Include Prometheus monitoring: `docker compose --profile monitoring up -d prometheus`
+- Include Prometheus & Grafana: `docker compose --profile monitoring up -d`
 - Start with all profiles: `docker compose --profile with-ollama --profile monitoring up --build`
 - Stop all services: `docker compose down`
 - Tail logs: `docker compose logs -f backend`
-- View Prometheus logs: `docker compose logs -f prometheus`
+- View monitoring logs: `docker compose logs -f prometheus grafana`
 
 ## Environment Variables
 
@@ -261,6 +284,7 @@ Current named volumes:
 - `redis_data` - Redis persistence (sessions, settings, history, favorites, cache)
 - `ollama_data` - Ollama models (only when using `--profile with-ollama`)
 - `prometheus_data` - Prometheus time-series data (only when using `--profile monitoring`)
+- `grafana_data` - Grafana dashboards and settings (only when using `--profile monitoring`)
 
 **Removing volumes:**
 ```bash
