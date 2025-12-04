@@ -470,7 +470,7 @@ See [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
-- Based on the guide: [Build Your Own RAG App](https://dev.to/nassermaronie/build-your-own-rag-app-a-step-by-step-guide-to-setup-llm-locally-using-ollama-python-and-chromadb-b12)
+- Inspired by the LangChain community’s Retrieval Cookbook and RAG best practices.
 - Uses [Ollama](https://ollama.ai/) for local LLM
 - Uses [ChromaDB](https://www.trychroma.com/) for vector storage
 - Uses [LangChain](https://www.langchain.com/) for RAG orchestration

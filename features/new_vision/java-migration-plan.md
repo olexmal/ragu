@@ -25,8 +25,8 @@
 - [x] **Auth & rate limiting**: Port authentication logic (`requires_auth`, `requires_write_auth`) and configure Quarkus rate limiting backed by Redis.
 
 ## Phase 6 – Cut Python Backend
-- [ ] **Retire Flask services**: Remove the Python containers/compose entries and point all tooling to the Quarkus backend.
-- [ ] **Docs & scripts cleanup**: Strip Python references from README/DOCKER_GUIDE and update helper scripts/env files to match the Java-only stack.
+- [x] **Retire Flask services**: Removed all Python services from Docker Compose, deleted the legacy backend sources, and pointed tooling/scripts at the Quarkus service only.
+- [x] **Docs & scripts cleanup**: Updated README, QUICKSTART, DOCKER_GUIDE, SCALABILITY_ROADMAP, DEVELOPER_GUIDE, and Browser MCP docs to reflect the Java-only stack.
 
 ## Phase 7 – Testing, Observability & Rollout
 - [ ] **Test suite**: Create integration tests (Quarkus + RestAssured) covering embedding, querying, and scraping flows.

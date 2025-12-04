@@ -13,21 +13,15 @@ Browser Use MCP is a Model Context Protocol server that enables AI assistants to
 
 ## Prerequisites
 
-1. **Python 3.11+** installed
-2. **uv package manager** installed (for running MCP servers)
-3. **Chrome or Chromium** browser installed
+1. **uv package manager** (bundles a CPython runtime automatically)
+2. **Chrome or Chromium** browser installed
 
 ## Installation
 
 ### Step 1: Install Browser Use
 
 ```bash
-uv pip install 'browser-use'
-```
-
-Or using pip directly:
-```bash
-pip install browser-use
+uv tool install browser-use
 ```
 
 ### Step 2: Verify Installation
