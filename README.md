@@ -226,6 +226,18 @@ docker compose up --build backend frontend-prod redis -d
 
 **Note**: Redis is now a required dependency for session management, settings storage, query history, and favorites.
 
+**Optional Monitoring:**
+
+To enable Prometheus metrics collection and visualization:
+
+```bash
+# Start with monitoring profile
+docker compose --profile monitoring up -d prometheus
+
+# Access Prometheus UI
+open http://localhost:9090
+```
+
 **Service URLs**
 
 - Backend API: http://localhost:8080
@@ -233,6 +245,7 @@ docker compose up --build backend frontend-prod redis -d
 - Frontend (prod): http://localhost:80
 - Metrics: http://localhost:8080/q/metrics
 - Health: http://localhost:8080/q/health/ready
+- Prometheus (optional): http://localhost:9090
 
 ---
 

@@ -97,6 +97,13 @@ This will:
    - Only active with `--profile with-ollama`
    - Models persisted in `ollama_data` volume
 
+6. **prometheus** (optional profile `monitoring`)
+   - Port: 9090
+   - Only active with `--profile monitoring`
+   - Scrapes metrics from backend at `/q/metrics` every 15 seconds
+   - Data persisted in `prometheus_data` volume
+   - UI available at http://localhost:9090
+
 ## Observability & Monitoring
 
 ### Built-in Endpoints
@@ -113,46 +120,96 @@ curl http://localhost:8080/q/metrics | head
 docker compose logs -f backend | jq .
 ```
 
-### Optional Prometheus & Loki Stack
+### Optional Prometheus Stack
 
-Add the following services to `docker-compose.yml` (or a secondary compose file) to capture metrics and logs:
+Prometheus is included in `docker-compose.yml` with the `monitoring` profile. It's pre-configured to scrape metrics from the backend at `/q/metrics`.
 
-```yaml
-services:
-  prometheus:
-    image: prom/prometheus:latest
-    volumes:
-      - ./ops/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    ports:
-      - "9090:9090"
-    profiles: ["monitoring"]
+**Starting Prometheus:**
 
-  loki:
-    image: grafana/loki:2.9.5
-    ports:
-      - "3100:3100"
-    command: -config.file=/etc/loki/local-config.yaml
-    profiles: ["monitoring"]
+```bash
+# Start with the monitoring profile
+docker compose --profile monitoring up -d prometheus
+
+# Or start entire stack including monitoring
+docker compose --profile monitoring up --build backend redis frontend-dev prometheus
 ```
 
-Sample `ops/prometheus.yml`:
+**Access Prometheus UI:**
+- URL: http://localhost:9090
+- The backend metrics are scraped every 15 seconds from `backend:8080/q/metrics`
+
+**Configuration:**
+
+The Prometheus configuration is defined in `prometheus.yml` at the project root:
 
 ```yaml
 global:
-  scrape_interval: 10s
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
 scrape_configs:
-  - job_name: "ragu-backend"
+  - job_name: 'ragu-backend'
+    metrics_path: '/q/metrics'
     static_configs:
-      - targets: ["backend:8080"]
+      - targets: ['backend:8080']
+        labels:
+          service: 'ragu-backend'
+          environment: 'docker'
 ```
 
-Then launch everything:
+**Querying Metrics:**
+
+Key metrics available in Prometheus:
+- `ragu_embedding_requests_total` - Total embedding requests
+- `ragu_query_requests_total` - Total query requests
+- `ragu_query_duration_seconds` - Query latency histogram
+- `ragu_embedding_duration_seconds` - Embedding latency histogram
+- `ragu_scrape_tasks_total` - Scrape task counters
+
+Example queries:
+```promql
+# Request rate (per second)
+rate(ragu_query_requests_total[5m])
+
+# 95th percentile query latency
+histogram_quantile(0.95, rate(ragu_query_duration_seconds_bucket[5m]))
+
+# Error rate
+rate(ragu_query_requests_total{result="error"}[5m])
+```
+
+**Adding Grafana (Optional):**
+
+To visualize Prometheus metrics, you can add Grafana to your setup:
 
 ```bash
-docker compose --profile monitoring up prometheus loki
+docker run -d --name=grafana --network=ragu-network -p 3000:3000 grafana/grafana:latest
 ```
 
-Grafana can be layered on top (point it at `http://localhost:9090` for Prometheus and `http://localhost:3100` for Loki).
+Then:
+1. Access Grafana at http://localhost:3000 (default credentials: admin/admin)
+2. Add Prometheus as a data source: `http://prometheus:9090`
+3. Import or create dashboards for RAGU metrics
+
+**Adding Loki for Logs (Optional):**
+
+For log aggregation, you can add Loki:
+
+```yaml
+# Add to docker-compose.yml under services:
+loki:
+  image: grafana/loki:2.9.5
+  container_name: ragu-loki
+  ports:
+    - "3100:3100"
+  command: -config.file=/etc/loki/local-config.yaml
+  profiles:
+    - monitoring
+  networks:
+    - ragu-network
+```
+
+Then configure Grafana to use Loki as a data source: `http://loki:3100`
 
 ## Docker Compose Files
 
@@ -163,8 +220,11 @@ All services are defined in `docker-compose.yml`. Profiles are used for optional
 - Start dev stack: `docker compose up --build backend redis frontend-dev`
 - Start prod stack: `docker compose up --build backend frontend-prod redis -d`
 - Include Ollama container: `docker compose --profile with-ollama up`
+- Include Prometheus monitoring: `docker compose --profile monitoring up -d prometheus`
+- Start with all profiles: `docker compose --profile with-ollama --profile monitoring up --build`
 - Stop all services: `docker compose down`
 - Tail logs: `docker compose logs -f backend`
+- View Prometheus logs: `docker compose logs -f prometheus`
 
 ## Environment Variables
 
@@ -198,10 +258,27 @@ Key variables:
 
 Current named volumes:
 
-- `redis_data` - Redis persistence
-- `ollama_data` - Ollama models (only when the optional Ollama container is enabled)
+- `redis_data` - Redis persistence (sessions, settings, history, favorites, cache)
+- `ollama_data` - Ollama models (only when using `--profile with-ollama`)
+- `prometheus_data` - Prometheus time-series data (only when using `--profile monitoring`)
 
-Use `docker compose down -v` to remove volumes.
+**Removing volumes:**
+```bash
+# Remove all volumes (WARNING: deletes all data)
+docker compose down -v
+
+# Remove specific volume
+docker volume rm ragu_prometheus_data
+```
+
+**Backing up volumes:**
+```bash
+# Backup Redis data
+docker run --rm -v ragu_redis_data:/data -v $(pwd):/backup alpine tar czf /backup/redis-backup.tar.gz -C /data .
+
+# Backup Prometheus data
+docker run --rm -v ragu_prometheus_data:/data -v $(pwd):/backup alpine tar czf /backup/prometheus-backup.tar.gz -C /data .
+```
 
 ## Manual Docker Compose Commands
 
